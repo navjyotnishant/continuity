@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "presets": {
+    "orion": {
+      "version": "1.0.0",
+      "source": "local",
+      "manifest_hash": "sha256:8d5c6e3c706aff9bd71a27e5b0955a2f23163361bb295aa19ecba1ce47e3c487",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "claude": [
+          "speckit.specify",
+          "speckit.tasks"
+        ]
+      },
+      "registered_skills": {
+        "claude": [
+          "speckit-specify",
+          "speckit-tasks"
+        ]
+      },
+      "installed_at": "2026-09-11T23:12:27.567799+00:00"
+    }
+  }
+}

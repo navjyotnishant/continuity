@@ -1,68 +1,23 @@
 {
-  "version": 1,
-  "limits": {
-    "max_tool_calls": 400,
-    "max_repeat_identical": 4,
-    "max_consecutive_failures": 3,
-    "max_same_command_failures": 3,
-    "max_session_minutes": 90,
-    "max_edits_without_verify": 25,
-    "max_files_touched": 60
-  },
-  "gates": {
-    "require_plan_before_edit": true,
-    "protect_tests_during_fix": true,
-    "production_requires_authorization": true,
-    "block_direct_push_to_default_branch": true
-  },
-  "paths": {
-    "intent": "docs/intent",
-    "specs": "specs",
-    "plans": "plans",
-    "evals": "evals",
-    "state": ".orion/state",
-    "protected": [".github/workflows/**", "orion.json", "managed-settings.json"]
-  },
-  "toolkit": {
-    "repo": "https://github.com/github/spec-kit.git",
-    "stages": {
-      "constitution": "/speckit-constitution",
-      "spec": "/speckit-specify",
-      "plan": "/speckit-plan",
-      "analyze": "/speckit-analyze"
-    }
+  "auto_merge": {
+    "enabled": false,
+    "environments": [
+      "dev"
+    ],
+    "require_checks": [
+      "build",
+      "test",
+      "lint",
+      "agent-evals"
+    ],
+    "require_eval_pass_rate": 0.95,
+    "min_eval_cases": 20,
+    "max_changed_files": 20
   },
   "autonomy": {
     "dev": "gated_write",
     "staging": "gated_write",
     "production": "propose_only"
-  },
-  "auto_merge": {
-    "enabled": false,
-    "environments": ["dev"],
-    "require_checks": ["build", "test", "lint", "agent-evals"],
-    "require_eval_pass_rate": 0.95,
-    "min_eval_cases": 20,
-    "max_changed_files": 20
-  },
-  "vcs": {
-    "provider": "github",
-    "default_branch": "main",
-    "work_branch": "develop",
-    "protected_branches": ["main", "develop"],
-    "branch_prefix": "orion/"
-  },
-  "tracker": {
-    "enabled": false,
-    "provider": "jira",
-    "project_key": "",
-    "create_project_per_idea": true,
-    "confirm_tree_before_create": true
-  },
-  "qa": {
-    "enabled": true,
-    "max_rounds": 3,
-    "e2e_base_url": ""
   },
   "ci": {
     "auto_fix": false,
@@ -73,5 +28,64 @@
     "enabled": true,
     "extra_tool_calls_for_review": 200,
     "deep_security_review_when": "high-risk"
-  }
+  },
+  "gates": {
+    "require_plan_before_edit": true,
+    "protect_tests_during_fix": true,
+    "production_requires_authorization": true,
+    "block_direct_push_to_default_branch": true
+  },
+  "limits": {
+    "max_tool_calls": 400,
+    "max_repeat_identical": 4,
+    "max_consecutive_failures": 3,
+    "max_same_command_failures": 3,
+    "max_session_minutes": 90,
+    "max_edits_without_verify": 25,
+    "max_files_touched": 60
+  },
+  "paths": {
+    "intent": "docs/intent",
+    "specs": "specs",
+    "plans": "plans",
+    "evals": "evals",
+    "state": ".orion/state",
+    "protected": [
+      ".github/workflows/**",
+      "orion.json",
+      "managed-settings.json"
+    ]
+  },
+  "qa": {
+    "enabled": true,
+    "max_rounds": 3,
+    "e2e_base_url": ""
+  },
+  "toolkit": {
+    "repo": "https://github.com/github/spec-kit.git",
+    "stages": {
+      "constitution": "/speckit-constitution",
+      "spec": "/speckit-specify",
+      "plan": "/speckit-plan",
+      "analyze": "/speckit-analyze"
+    }
+  },
+  "tracker": {
+    "confirm_tree_before_create": true,
+    "create_project_per_idea": true,
+    "enabled": true,
+    "project_key": "CONTINUI",
+    "provider": "jira"
+  },
+  "vcs": {
+    "provider": "github",
+    "default_branch": "main",
+    "work_branch": "develop",
+    "protected_branches": [
+      "main",
+      "develop"
+    ],
+    "branch_prefix": "orion/"
+  },
+  "version": 1
 }
