@@ -6,6 +6,24 @@
 # "Infrastructure: metadata.json" section and tasks.md T030-T032.
 set -u
 
+FAILURES=0
+
+assert_ok() {
+  local status="$1" msg="$2"
+  if [ "$status" -ne 0 ]; then
+    echo "FAIL: $msg (exit status $status)"
+    FAILURES=$((FAILURES + 1))
+  fi
+}
+
+assert_eq() {
+  local expected="$1" actual="$2" msg="$3"
+  if [ "$expected" != "$actual" ]; then
+    echo "FAIL: $msg (expected [$expected], got [$actual])"
+    FAILURES=$((FAILURES + 1))
+  fi
+}
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 RETENTION_SH="$REPO_ROOT/lib/retention.sh"
@@ -162,3 +180,11 @@ test_git_tracked_field_reflects_actual_git_state() {
 test_session_history_is_pruned
 test_editing_retention_days_takes_immediate_effect
 test_git_tracked_field_reflects_actual_git_state
+
+if [ "$FAILURES" -eq 0 ]; then
+  echo "PASS: test_install_docs_retention.sh"
+  exit 0
+else
+  echo "FAILED: $FAILURES assertion(s) in test_install_docs_retention.sh"
+  exit 1
+fi

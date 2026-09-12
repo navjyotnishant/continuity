@@ -21,10 +21,12 @@ treat any other tracked file with that risk, and opt out per below.
 
 Continuity runs `lib/secret_scan.sh` over content before it writes it, to
 catch common credential patterns (API keys, tokens, etc.). This reduces
-risk but **does not eliminate it**: a scan can always have a false
-negative — a secret in a shape the patterns don't recognize ships into
-git history exactly as if the scan weren't there. Do not treat the scan as
-a substitute for your own judgment about what you let Continuity persist.
+risk but **does not eliminate it**: a scan can always have a false negative
+— a secret in a shape the patterns don't recognize ships into git history
+exactly as if the scan weren't there.
+
+Do not treat the scan as a substitute for your own judgment about what you let Continuity persist.
+
 If you're unsure, opt out of git-tracking (below) or keep sensitive detail
 out of the conversation entirely.
 

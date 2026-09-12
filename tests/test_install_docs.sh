@@ -4,6 +4,24 @@
 # already-committed repo, and new files stay untracked afterward.
 set -u
 
+FAILURES=0
+
+assert_ok() {
+  local status="$1" msg="$2"
+  if [ "$status" -ne 0 ]; then
+    echo "FAIL: $msg (exit status $status)"
+    FAILURES=$((FAILURES + 1))
+  fi
+}
+
+assert_eq() {
+  local expected="$1" actual="$2" msg="$3"
+  if [ "$expected" != "$actual" ]; then
+    echo "FAIL: $msg (expected [$expected], got [$actual])"
+    FAILURES=$((FAILURES + 1))
+  fi
+}
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
@@ -99,3 +117,11 @@ test_new_files_after_opt_out_stay_untracked() {
 test_fresh_repo_opt_out_untracks
 test_existing_commits_untrack_correctly
 test_new_files_after_opt_out_stay_untracked
+
+if [ "$FAILURES" -eq 0 ]; then
+  echo "PASS: test_install_docs.sh"
+  exit 0
+else
+  echo "FAILED: $FAILURES assertion(s) in test_install_docs.sh"
+  exit 1
+fi
