@@ -317,7 +317,7 @@ user-facing error in the middle of normal work.
 
 ## Open questions
 
-- [NEEDS CLARIFICATION: Q1 — Should `.continuity/` be committed to git
+- [x] [NEEDS CLARIFICATION: Q1 — Should `.continuity/` be committed to git
   (so context is shared across contributors and branches, matching the
   intent doc's "Git-friendly, portable" framing) or gitignored (local-only
   per developer machine)? These pull in different directions: committing it
@@ -328,13 +328,15 @@ user-facing error in the middle of normal work.
   data security posture. This cannot be resolved by a default; it needs an
   explicit decision (and, if tracked, a documented redaction discipline for
   what must never be written there).]
-- [NEEDS CLARIFICATION: Q2 — What concrete bound (a line count, byte size,
+  Answer: I’d recommend yes, .continuity/ should be committed to Git by default. The main reason is that Continuity is project-level context, and committing it makes that context travel with the project: a new developer or a new machine can get the same decisions, current state, constraints, and learnings. However, we should design it so users can opt out later—for example, if a project contains sensitive or highly personal context. Recommended MVP decision: .continuity/ is Git-tracked by default. The plugin should provide an easy way to add it to .gitignore if the user wants local-only continuity.
+- [x] [NEEDS CLARIFICATION: Q2 — What concrete bound (a line count, byte size,
   or token budget) defines the "bounded relevant subset" loaded at
   SessionStart, and what selection method picks which entries make that cut
   without a database, an embeddings/vector store, or a cloud call (all of
   which are out of scope)? Without an answer, "bounded" and "relevant" are
   both currently unverifiable requirements.]
-- [NEEDS CLARIFICATION: Q3 — What is the concrete non-blocking execution
+  Answer: For the MVP, the injected context should have a soft target of ~100–200 lines (roughly 5–10 KB) per SessionStart, with the goal of keeping only the most relevant project state. This is a target, not a hard truncation limit—if the relevant context is smaller, load less; if it occasionally exceeds the target, Continuity can prioritize and compress it before injection.
+- [x] [NEEDS CLARIFICATION: Q3 — What is the concrete non-blocking execution
   mechanism for asynchronous memory writes inside the Claude Code plugin/
   hook model, given that "no separate server process" is also a hard
   constraint? Plugin hooks typically run as short-lived processes tied to an
@@ -343,7 +345,8 @@ user-facing error in the middle of normal work.
   different thing from a persistent server but needs to be named and agreed
   as in-scope, since the line between "a detached background process" and
   "a server" is exactly where this constraint could quietly be violated.]
-- [NEEDS CLARIFICATION: Q4 — How should content loaded from `.continuity/`
+  Answer: For the MVP, Continuity should use **fire-and-forget asynchronous background processing** for memory writes. The Claude Code hook should perform only the minimal work required to capture or queue the event, then return immediately. Any summarization, consolidation, or state update should happen in a separate background process after the hook returns, so the interactive Claude Code workflow is never waiting for memory processing. If the background process cannot be started or fails, Continuity logs the failure and Claude Code continues normally.
+- [x] [NEEDS CLARIFICATION: Q4 — How should content loaded from `.continuity/`
   files be screened before it re-enters a session's context, given that
   those files are plain text a prior session (or a teammate, if Q1 resolves
   to "tracked") could have written to contain something that reads as an
@@ -351,34 +354,40 @@ user-facing error in the middle of normal work.
   directive)? Treating all persisted content as unconditionally trustworthy
   context reintroduces the same class of risk as accepting instructions from
   any other untrusted external document.]
-- [NEEDS CLARIFICATION: Q5 — How are concurrent writes handled when two
+  Answer: For the MVP, content loaded from `.continuity/` should be treated as **trusted project context, not as instructions**. At `SessionStart`, Continuity should inject only a concise, relevant context block into Claude Code, clearly labeled as **Continuity context**. Claude should use it to understand project state, decisions, constraints, and work in progress, but it should not automatically execute commands or treat embedded text as higher-priority instructions. Any content that appears to contain instructions should be treated as project information unless the user explicitly asks Claude to act on it.
+- [x] [NEEDS CLARIFICATION: Q5 — How are concurrent writes handled when two
   Claude Code sessions on the same project (two terminals, or an interactive
   session plus a background/subagent session) fire a memory-write trigger at
   close to the same time? Is last-write-wins acceptable, is there a lock,
   or does each session write to a distinct location that gets merged later?]
-- [NEEDS CLARIFICATION: Q6 — What is the retention/pruning policy for
+  Answer: For the MVP, concurrent writes should use **file locking with atomic writes**. Before updating shared `.continuity/` state, a session acquires a short-lived lock, reads the latest state, applies its update, writes the new version atomically, and releases the lock. This prevents two sessions from overwriting each other or leaving partially written files. If the lock is unavailable, the update should retry briefly and then fail gracefully rather than blocking Claude Code.
+- [x] [NEEDS CLARIFICATION: Q6 — What is the retention/pruning policy for
   `.continuity/` content over the life of a long-running project? Without
   one, "bounded subset at session start" (FR-005) is at odds with an
   unbounded, ever-growing store, and a developer has no documented way to
   reset or prune it.]
-- [NEEDS CLARIFICATION: Q7 — Does the plugin require any permission beyond
+  Answer: For the MVP, durable project context (state.md, decisions.md, tasks.md, learnings.md) should be retained indefinitely. Session-specific history under .continuity/sessions/ should follow a configurable retention period, defaulting to 60 days. Users can change the retention period based on their project needs. Important information promoted into durable context should not be removed during session-history pruning.
+- [x] [NEEDS CLARIFICATION: Q7 — Does the plugin require any permission beyond
   reading and writing inside `.continuity/` — for example, running git
   commands to compute "meaningful git diffs," or reading files elsewhere in
   the project to detect "significant file changes"? A marketplace-
   distributed plugin's permission footprint is itself a trust/security
   question a reviewer or installer will ask, and it is not stated in the
   intent doc.]
+  Answer: For the MVP, **Continuity should require no permissions beyond what Claude Code already grants to a plugin running within the project**. It needs access to read/write the project’s `.continuity/` directory and read the project information necessary to maintain context. It should not require access to external services, user-level files, cloud storage, or credentials. Any future capability that requires broader access should be explicitly opt-in rather than part of the default installation.
 - [NEEDS CLARIFICATION: Q8 — Where do "log the failure locally" entries
   (FR-012) live, how long are they kept, and must they be scrubbed of any
   content that caused the failure (e.g., a corrupted file's raw bytes),
   given the same sensitivity concerns raised in Q1?]
-- [NEEDS CLARIFICATION: Q9 — Since the plugin can be updated independently
+- [x] [NEEDS CLARIFICATION: Q9 — Since the plugin can be updated independently
   of any given project's `.continuity/` content, what compatibility
   contract applies if a newer plugin version changes the file
   categories/format described in FR-002? Without one, an updated plugin
   reading an older project's files (or vice versa, a teammate on an older
   plugin version reading a newer project's files) has undefined behavior.]
-- [NEEDS CLARIFICATION: Q10 — Is the scope a single project root only, or
+  Answer: Store lightweight failure logs in .continuity/errors.log, with no conversation content or secrets, and prune them using the configurable retention period (default 60 days).
+- [x] [NEEDS CLARIFICATION: Q10 — Is the scope a single project root only, or
   must Continuity also define behavior for monorepos or multiple git
   worktrees, where "the project" and therefore the correct `.continuity/`
   location may be ambiguous?]
+  Answer: **MVP scope is a single project root only:** Continuity operates on the project root where it is installed and stores all project context under that project’s `.continuity/` directory; multi-project/global context is out of scope for the MVP.
