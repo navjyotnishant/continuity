@@ -137,16 +137,21 @@ def _log(cwd, failure_kind, detail):
 def main():
     try:
         raw = sys.stdin.read()
-        payload = json.loads(raw) if raw.strip() else {}
+        parsed = json.loads(raw) if raw.strip() else {}
     except (OSError, ValueError):
         return 0
 
-    cwd = payload.get("cwd")
-    if not cwd:
+    # Valid JSON that is not an object is as malformed as unparseable bytes:
+    # both mean "no signal to classify", and neither may raise out of a hook.
+    if not isinstance(parsed, dict):
+        return 0
+
+    cwd = parsed.get("cwd")
+    if not isinstance(cwd, str) or not cwd:
         return 0
 
     try:
-        trigger_kind = classify(payload)
+        trigger_kind = classify(parsed)
     except Exception:
         trigger_kind = None
 

@@ -26,6 +26,24 @@ from lib.select_context import select_context
 HOOK_EVENT_NAME = "SessionStart"
 
 
+def read_payload():
+    """Return the stdin payload as a dict — `{}` for anything unusable.
+
+    Valid JSON that is not an object (a bare list or string) is as much a
+    malformed payload as unparseable bytes are, and both have to land on the
+    same fail-open path: stdin is this script's trust boundary, and a hook
+    that raises here has already violated "always exits 0".
+    """
+    try:
+        raw = sys.stdin.read()
+        if not raw.strip():
+            return {}
+        parsed = json.loads(raw)
+    except (OSError, ValueError):
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
 def build_context(cwd):
     """Return the context block for a project root, or "" for nothing to inject."""
     continuity_dir_path = continuity_dir(cwd)
@@ -37,15 +55,10 @@ def build_context(cwd):
 
 
 def main():
-    payload = {}
-    try:
-        raw = sys.stdin.read()
-        if raw.strip():
-            payload = json.loads(raw)
-    except (OSError, ValueError):
-        payload = {}
-
-    cwd = payload.get("cwd") or os.getcwd()
+    payload = read_payload()
+    cwd = payload.get("cwd")
+    if not isinstance(cwd, str) or not cwd:
+        cwd = os.getcwd()
 
     try:
         context = build_context(cwd)

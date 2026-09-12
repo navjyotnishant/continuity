@@ -92,6 +92,28 @@ class TestWriteMemory(unittest.TestCase):
             self.assertEqual(entries[0]["fields"]["status"], "active")
             self.assertIn("Read path is done", read(handoff_path))
 
+    def test_staged_learning_becomes_a_durable_entry(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            staged = stage(
+                tmp,
+                "learning",
+                "# os.replace() is atomic on Windows too\n\n"
+                "Confirmed via the stdlib docs; same filesystem only.\n",
+            )
+
+            write_memory(tmp, "file-change")
+
+            store = os.path.join(tmp, ".continuity")
+            entries = _entries(store, "learnings.md")
+            self.assertEqual(len(entries), 1)
+            self.assertEqual(
+                entries[0]["heading"], "Learning: os.replace() is atomic on Windows too"
+            )
+            self.assertEqual(entries[0]["fields"]["category"], "learning")
+            self.assertTrue(entries[0]["fields"]["captured_at"].endswith("Z"))
+            self.assertIn("same filesystem only", "\n".join(entries[0]["body"]))
+            self.assertFalse(os.path.exists(staged), "staged note must be consumed")
+
     def test_appending_keeps_earlier_entries_parseable(self):
         with tempfile.TemporaryDirectory() as tmp:
             stage(tmp, "learning", "# First\n\nOne.\n")
@@ -273,6 +295,14 @@ class TestCaptureTrigger(unittest.TestCase):
             # hook ever starts waiting for the writer it launched. Measured
             # locally at ~41 ms including interpreter startup.
             self.assertLess(elapsed, 0.25)
+
+    def test_malformed_payload_exits_zero_and_launches_nothing(self):
+        # Valid JSON that is not an object: `parsed.get("cwd")` would raise
+        # straight out of the hook, which is itself a fail-open violation.
+        result, _ = self.run_hook([1, 2, 3])
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "")
 
     def test_non_git_bash_call_is_not_a_signal(self):
         with tempfile.TemporaryDirectory() as tmp:

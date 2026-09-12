@@ -183,6 +183,34 @@ class TestSelectContext(unittest.TestCase):
             self.assertNotIn("## State", context)
             self.assertIn("## Recent decisions", context)
 
+    def test_absent_section_omits_its_heading_entirely(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = build_store(tmp)
+            os.remove(os.path.join(store, "decisions.md"))
+            context = select_context(store)
+
+            self.assertNotIn("## Recent decisions", context)
+            self.assertIn("## State", context)
+            self.assertIn("## Active tasks", context)
+            self.assertIn("## Recent learnings", context)
+            self.assertIn("## Last handoff", context)
+
+    def test_unreadable_file_is_treated_as_absent_for_that_file_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = build_store(tmp)
+            decisions_path = os.path.join(store, "decisions.md")
+            os.chmod(decisions_path, 0o000)
+            try:
+                context = select_context(store)
+            finally:
+                os.chmod(decisions_path, 0o644)
+
+            self.assertNotIn("## Recent decisions", context)
+            self.assertIn("## State", context)
+            self.assertIn("## Active tasks", context)
+            self.assertIn("## Recent learnings", context)
+            self.assertIn("## Last handoff", context)
+
 
 class TestSessionStartHook(unittest.TestCase):
     def run_hook(self, cwd):
@@ -238,6 +266,25 @@ class TestSessionStartHook(unittest.TestCase):
                 self.assertEqual(handle.read(), before)
             with open(os.path.join(store, "errors.log"), encoding="utf-8") as handle:
                 self.assertIn("unsupported-schema", handle.read())
+
+    def test_exits_zero_even_on_an_internal_error(self):
+        # A payload whose parsed JSON is not an object (a list here) makes
+        # `payload.get("cwd")` raise before build_context ever runs — this
+        # drives the hook's own top-level failure path, not select_context's.
+        result = subprocess.run(
+            [sys.executable, SESSION_START_HOOK],
+            input="[1, 2, 3]",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=30,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(
+            payload, {"hookSpecificOutput": {"hookEventName": "SessionStart"}}
+        )
 
 
 if __name__ == "__main__":
