@@ -435,7 +435,7 @@ instead of guessing past them.
   content that caused the failure (e.g., a corrupted file's raw bytes),
   given the same sensitivity concerns raised in Q1?]
   Answer: Store failures in `.continuity/errors.log`; retain them for the configurable retention period (default **60 days**), and scrub logs so they contain only operational metadata—never raw file contents, conversation content, secrets, credentials, or other sensitive data.
-- [NEEDS CLARIFICATION: Q9 — Since the plugin can be updated independently
+- [x] [NEEDS CLARIFICATION: Q9 — Since the plugin can be updated independently
   of any given project's `.continuity/` content, what compatibility
   contract applies if a newer plugin version changes the file
   categories/format described in FR-002? Without one, an updated plugin
@@ -445,6 +445,7 @@ instead of guessing past them.
   verbatim and did not actually address versioning/compatibility; that
   copy-paste error has been reverted and this question is genuinely still
   open — it needs its own answer, not Q8's.)]
+  Answer: **Continuity should use an explicit schema version in `.continuity/metadata.json`, with backward compatibility for at least the current and previous schema versions; newer plugin versions should migrate older state forward when safe, while older plugins should detect unsupported newer versions and fail open without modifying the files.**
 - [x] [NEEDS CLARIFICATION: Q10 — Is the scope a single project root only, or
   must Continuity also define behavior for monorepos or multiple git
   worktrees, where "the project" and therefore the correct `.continuity/`
