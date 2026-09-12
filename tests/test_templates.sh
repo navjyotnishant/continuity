@@ -40,6 +40,13 @@ assert m["git_tracked"] is True, m["git_tracked"]
 for k in ("plugin_version", "created_at"):
     assert isinstance(m[k], str) and m[k], k
 ' "$TEMPLATES/metadata.json.tmpl"
+  check "metadata.json.tmpl has no fields beyond the five known keys" \
+    python3 -c '
+import json, sys
+m = json.load(open(sys.argv[1]))
+known = {"schema_version", "retention_days", "git_tracked", "plugin_version", "created_at"}
+assert set(m.keys()) == known, sorted(m.keys())
+' "$TEMPLATES/metadata.json.tmpl"
 else
   echo "skip - no python3; JSON validation not run"
 fi
@@ -61,6 +68,66 @@ for f in decisions.md.tmpl tasks.md.tmpl; do
 done
 check "learnings.md.tmpl seeds no entries beyond '## Conventions'" bash -c \
   "! grep -E '^## ' '$TEMPLATES/learnings.md.tmpl' | grep -qv '^## Conventions$'"
+
+# Section heading names must match what data-model.md documents and what
+# select_context.sh (T009+) will look for when it reads these files back.
+check "state.md.tmpl heading matches data-model.md's '## Constraints'" \
+  grep -q '^## Constraints$' "$TEMPLATES/state.md.tmpl"
+check "learnings.md.tmpl heading matches data-model.md's '## Conventions'" \
+  grep -q '^## Conventions$' "$TEMPLATES/learnings.md.tmpl"
+check "data-model.md itself documents '## Constraints' for state.md" \
+  grep -q '## Constraints' "$ROOT/specs/001-continuity/data-model.md"
+check "data-model.md itself documents '## Conventions' for learnings.md" \
+  grep -q '## Conventions' "$ROOT/specs/001-continuity/data-model.md"
+
+# Permissions: templates must be readable and never executable — nothing
+# instantiates them by running them, so an execute bit would be an accident
+# waiting to be invoked.
+for f in state.md.tmpl decisions.md.tmpl tasks.md.tmpl learnings.md.tmpl \
+         metadata.json.tmpl; do
+  check "templates/$f is readable" test -r "$TEMPLATES/$f"
+  check "templates/$f is not executable" bash -c \
+    "[ ! -x '$TEMPLATES/$f' ]"
+done
+
+# Comments must describe the section they precede, not some other file's
+# shape — a copy-pasted comment block would silently document the wrong
+# entity.
+check "state.md.tmpl's HTML comment mentions the state snapshot, not entries" \
+  grep -q 'snapshot' "$TEMPLATES/state.md.tmpl"
+check "decisions.md.tmpl's comment names 'Decision:' entries" \
+  grep -q 'Decision:' "$TEMPLATES/decisions.md.tmpl"
+check "tasks.md.tmpl's comment names 'Task:' entries and a status enum" \
+  grep -q 'Task:' "$TEMPLATES/tasks.md.tmpl"
+check "tasks.md.tmpl's comment documents the status enum" \
+  grep -qE 'active \| blocked \| done' "$TEMPLATES/tasks.md.tmpl"
+check "learnings.md.tmpl's comment names 'Learning:' entries" \
+  grep -q 'Learning:' "$TEMPLATES/learnings.md.tmpl"
+check "learnings.md.tmpl's Conventions comment names 'Convention:' entries" \
+  bash -c "sed -n '/## Conventions/,\$p' '$TEMPLATES/learnings.md.tmpl' | grep -q 'Convention:'"
+
+# No template may hardcode a value that data-model.md says is filled in at
+# instantiation time (timestamps, versions) -- those must stay placeholders.
+check "state.md.tmpl's updated_at is a placeholder, not a real timestamp" \
+  grep -qE '^updated_at: <.*>$' "$TEMPLATES/state.md.tmpl"
+check "metadata.json.tmpl's created_at is a placeholder, not a real timestamp" \
+  grep -qE '"created_at": *"<[^"]*>"' "$TEMPLATES/metadata.json.tmpl"
+check "metadata.json.tmpl's plugin_version is a placeholder, not a pinned version" \
+  grep -qE '"plugin_version": *"<[^"]*>"' "$TEMPLATES/metadata.json.tmpl"
+check "metadata.json.tmpl's static config values are literal, not placeholders" \
+  bash -c \
+  "! grep -qE '\"(schema_version|retention_days|git_tracked)\": *\"?<' '$TEMPLATES/metadata.json.tmpl'"
+
+# Placeholder delimiters must be balanced: every '<' in a template's
+# instantiation-time value has a matching '>' on the same line, and vice
+# versa, so a substitution pass can't run off the end of the line.
+for f in state.md.tmpl decisions.md.tmpl tasks.md.tmpl learnings.md.tmpl \
+         metadata.json.tmpl; do
+  check "$f has balanced '<' and '>' counts" bash -c \
+    "[ \$(grep -o '<' '$TEMPLATES/$f' | wc -l) -eq \$(grep -o '>' '$TEMPLATES/$f' | wc -l) ]"
+  check "$f has no line with an unclosed '<...>' placeholder" bash -c \
+    "! grep -nE '<[^>]*\$' '$TEMPLATES/$f'"
+done
 
 if [ "$fails" -ne 0 ]; then
   echo "test_templates.sh: $fails assertion(s) failed"
