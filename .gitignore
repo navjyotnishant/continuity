@@ -1,1 +1,12 @@
 .orion/
+
+# OS cruft
+.DS_Store
+
+# Secret-bearing local config (OSPS-BR-07.01) — Continuity itself has no
+# .env/credentials of its own, but a plugin installed into a project must
+# never pick these up.
+.env
+.env.*
+*.pem
+*.key
