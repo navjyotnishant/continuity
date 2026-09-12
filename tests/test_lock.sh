@@ -42,8 +42,19 @@ fi
 # acquires the tests below deliberately provoke.
 set +e
 
+# Lets the meta-tests below (cases 13-15) force a deterministic failure in a
+# child invocation of this same script without touching lib/lock.sh.
+if [ "${CONTINUITY_LOCK_TEST_FORCE_FAIL:-0}" = "1" ]; then
+  assert_eq 1 2 "deliberately forced failure so a meta-test can observe a non-zero exit"
+fi
+
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/continuity-test-lock.XXXXXX") || exit 1
 trap 'rm -rf "$WORK"' EXIT
+# Emitted only for the meta-tests below (cases 13-15) so the parent can check
+# this directory is gone once the child (this script, run recursively) exits.
+if [ "${CONTINUITY_LOCK_TEST_CHILD:-0}" = "1" ]; then
+  printf 'WORK_DIR:%s\n' "$WORK"
+fi
 
 # --- Two independent processes race for the same lock ----------------------
 # Exactly one wins. The loser's acquire must be refused, not granted
@@ -111,6 +122,50 @@ assert_ok "$?" "a lock older than the stale threshold is broken and re-acquired"
 assert_eq present "$(dir_state "$stale_dir/.lock")" "the re-acquired lock directory exists"
 assert_eq yes "$(is_newer "$stale_dir/.lock" "$old_ref")" "the stale lock was replaced, not adopted"
 lock_release "$stale_dir"
+
+# --- QA gap: an acquire against a path that cannot exist fails fast --------
+# lock_acquire must not spin out its whole timeout on a path that can never
+# accept a mkdir (e.g. .continuity/ not yet seeded); it should refuse
+# immediately instead of blocking the caller for no reason.
+lock_acquire "$WORK/does-not-exist" 1
+assert_eq 1 "$?" "acquire against a nonexistent path is refused, not accepted"
+
+# --- QA gap: an acquire denied by a still-held, non-stale lock times out ---
+# The suite above only exercises the case where the blocked acquire's holder
+# releases before the deadline. The other branch -- the holder never releases
+# and the deadline passes -- is never reached, so an implementation that
+# retries forever (hanging the caller) or that grants the lock anyway (the
+# same defect as no mutual exclusion, just reached via the retry loop
+# instead of the initial mkdir) would pass every case above.
+timeout_dir="$WORK/timeout"
+mkdir -p "$timeout_dir"
+lock_acquire "$timeout_dir" 1
+assert_ok "$?" "acquires the lock so a second acquire has something to contend with"
+lock_acquire "$timeout_dir" 1
+assert_eq 1 "$?" "an acquire denied by a still-held lock returns non-zero once its own timeout elapses"
+lock_release "$timeout_dir"
+
+# --- This script's own exit-code and cleanup contract -----------------------
+# tests/run_tests.sh (T003) discovers every tests/test_*.sh by this contract:
+# exit 0 when every assertion passed, non-zero when any failed, and no temp
+# dir left behind either way. Verified by running this same script as a child
+# with CONTINUITY_LOCK_TEST_CHILD=1, which makes the child skip this block so
+# it does not recurse.
+if [ "${CONTINUITY_LOCK_TEST_CHILD:-0}" != "1" ]; then
+  child_out=$(CONTINUITY_LOCK_TEST_CHILD=1 bash "$TEST_DIR/test_lock.sh" 2>&1)
+  child_status=$?
+  child_work=$(printf '%s\n' "$child_out" | sed -n 's/^WORK_DIR://p')
+  assert_eq 0 "$child_status" "exits 0 when all assertions pass"
+
+  fail_status=$(CONTINUITY_LOCK_TEST_CHILD=1 CONTINUITY_LOCK_TEST_FORCE_FAIL=1 bash "$TEST_DIR/test_lock.sh" >/dev/null 2>&1; printf '%s' "$?")
+  if [ "$fail_status" -ne 0 ]; then
+    pass "exits non-zero when any assertion fails"
+  else
+    fail "exits non-zero when any assertion fails (got 0)"
+  fi
+
+  assert_eq absent "$(dir_state "$child_work")" "the temporary working directory is cleaned up after the test runs"
+fi
 
 if [ "$failures" -gt 0 ]; then
   printf '%s: %d assertion(s) failed\n' "$(basename "$0")" "$failures" >&2
