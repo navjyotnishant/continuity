@@ -1,10 +1,10 @@
-"""tests/test_migrate.py — metadata.json creation and schema compatibility
-(T012, contracts/file-format-contract.md -> metadata.json).
+"""tests/test_migrate.py — unit tests for lib/migrate.py.
 
-Covers `metadata_ensure` (creates the file from the seed template when
-absent) and `metadata_check_and_migrate` (current schema read unchanged,
-an older-but-supported schema migrated forward in place, an unsupported
-newer schema fails open with no write at all).
+The three cases tasks.md T012 names are TestCheckAndMigrate's first three:
+a store at the current schema version is left alone, a store at the prior
+version gains the current `schema_version`, and a store at an unsupported
+newer version is byte-for-byte unchanged with an `unsupported-schema` line
+in `errors.log`.
 """
 
 import json
@@ -13,118 +13,232 @@ import sys
 import tempfile
 import unittest
 
-REPO_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
-sys.path.insert(0, REPO_ROOT)
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from lib.migrate import SCHEMA_VERSION, metadata_check_and_migrate, metadata_ensure
+from lib import migrate
+from lib.migrate import (
+    CURRENT_SCHEMA_VERSION,
+    metadata_check_and_migrate,
+    metadata_ensure,
+)
+
+PRIOR_SCHEMA_VERSION = "0.9"
+UNSUPPORTED_NEWER_SCHEMA_VERSION = "2.0"
 
 
-def read_metadata(continuity_dir_path):
-    with open(
-        os.path.join(continuity_dir_path, "metadata.json"), encoding="utf-8"
-    ) as handle:
+def _write_metadata(continuity_dir, schema_version, **extra):
+    os.makedirs(continuity_dir, exist_ok=True)
+    metadata = {
+        "schema_version": schema_version,
+        "plugin_version": "0.1.0",
+        "created_at": "2026-09-01T00:00:00Z",
+        "retention_days": 45,
+        "git_tracked": False,
+    }
+    metadata.update(extra)
+    path = os.path.join(continuity_dir, "metadata.json")
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(metadata, handle, indent=2)
+    return path
+
+
+def _read_json(path):
+    with open(path, "r", encoding="utf-8") as handle:
         return json.load(handle)
 
 
+def _read_bytes(path):
+    with open(path, "rb") as handle:
+        return handle.read()
+
+
+def _errors_log(continuity_dir):
+    path = os.path.join(continuity_dir, "errors.log")
+    if not os.path.isfile(path):
+        return ""
+    with open(path, "r", encoding="utf-8") as handle:
+        return handle.read()
+
+
+class TestCheckAndMigrate(unittest.TestCase):
+    def test_current_version_is_left_untouched(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            continuity_dir = os.path.join(tmp, ".continuity")
+            path = _write_metadata(continuity_dir, CURRENT_SCHEMA_VERSION)
+            before = _read_bytes(path)
+
+            self.assertTrue(metadata_check_and_migrate(continuity_dir))
+
+            self.assertEqual(_read_bytes(path), before)
+            self.assertEqual(_errors_log(continuity_dir), "")
+
+    def test_prior_version_is_migrated_forward(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            continuity_dir = os.path.join(tmp, ".continuity")
+            path = _write_metadata(continuity_dir, PRIOR_SCHEMA_VERSION)
+
+            self.assertTrue(metadata_check_and_migrate(continuity_dir))
+
+            migrated = _read_json(path)
+            self.assertEqual(migrated["schema_version"], CURRENT_SCHEMA_VERSION)
+            # Migrating forward must not discard the developer's own config.
+            self.assertEqual(migrated["retention_days"], 45)
+            self.assertEqual(migrated["git_tracked"], False)
+            self.assertEqual(migrated["created_at"], "2026-09-01T00:00:00Z")
+
+    def test_prior_version_migration_leaves_no_temp_debris(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            continuity_dir = os.path.join(tmp, ".continuity")
+            _write_metadata(continuity_dir, PRIOR_SCHEMA_VERSION)
+
+            self.assertTrue(metadata_check_and_migrate(continuity_dir))
+
+            self.assertEqual(sorted(os.listdir(continuity_dir)), ["metadata.json"])
+
+    def test_unsupported_newer_version_is_untouched_and_logged(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            continuity_dir = os.path.join(tmp, ".continuity")
+            path = _write_metadata(
+                continuity_dir, UNSUPPORTED_NEWER_SCHEMA_VERSION, future_field="kept"
+            )
+            before = _read_bytes(path)
+
+            self.assertFalse(metadata_check_and_migrate(continuity_dir))
+
+            self.assertEqual(_read_bytes(path), before)
+            self.assertIn("unsupported-schema", _errors_log(continuity_dir))
+            # errors.log is the only write the contract permits here.
+            self.assertEqual(
+                sorted(os.listdir(continuity_dir)), ["errors.log", "metadata.json"]
+            )
+
+    def test_far_older_unmigratable_version_is_untouched_and_logged(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            continuity_dir = os.path.join(tmp, ".continuity")
+            path = _write_metadata(continuity_dir, "-1.0")
+            before = _read_bytes(path)
+
+            self.assertFalse(metadata_check_and_migrate(continuity_dir))
+
+            self.assertEqual(_read_bytes(path), before)
+            self.assertIn("unsupported-schema", _errors_log(continuity_dir))
+
+    def test_newer_minor_of_same_major_is_readable_and_not_downgraded(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            continuity_dir = os.path.join(tmp, ".continuity")
+            path = _write_metadata(continuity_dir, "1.7")
+            before = _read_bytes(path)
+
+            self.assertTrue(metadata_check_and_migrate(continuity_dir))
+
+            self.assertEqual(_read_bytes(path), before)
+
+    def test_absent_metadata_is_treated_as_current_version(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            continuity_dir = os.path.join(tmp, ".continuity")
+            os.makedirs(continuity_dir)
+
+            self.assertTrue(metadata_check_and_migrate(continuity_dir))
+
+            self.assertEqual(os.listdir(continuity_dir), [])
+
+    def test_absent_continuity_dir_does_not_raise(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertTrue(metadata_check_and_migrate(os.path.join(tmp, ".continuity")))
+
+    def test_unparseable_metadata_fails_open_without_rewriting(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            continuity_dir = os.path.join(tmp, ".continuity")
+            os.makedirs(continuity_dir)
+            path = os.path.join(continuity_dir, "metadata.json")
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write("{ not json")
+
+            self.assertFalse(metadata_check_and_migrate(continuity_dir))
+
+            self.assertEqual(_read_bytes(path), b"{ not json")
+            self.assertIn("corrupted", _errors_log(continuity_dir))
+
+    def test_missing_schema_version_fails_open(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            continuity_dir = os.path.join(tmp, ".continuity")
+            os.makedirs(continuity_dir)
+            path = os.path.join(continuity_dir, "metadata.json")
+            with open(path, "w", encoding="utf-8") as handle:
+                json.dump({"plugin_version": "0.1.0"}, handle)
+
+            self.assertFalse(metadata_check_and_migrate(continuity_dir))
+            self.assertIn("corrupted", _errors_log(continuity_dir))
+
+    def test_logged_detail_never_carries_a_long_raw_value(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            continuity_dir = os.path.join(tmp, ".continuity")
+            _write_metadata(continuity_dir, "9" * 5000)
+
+            self.assertFalse(metadata_check_and_migrate(continuity_dir))
+
+            log = _errors_log(continuity_dir)
+            self.assertEqual(log.count("\n"), 1)
+            self.assertLess(len(log), 200)
+
+
 class TestMetadataEnsure(unittest.TestCase):
-    def test_creates_metadata_json_from_the_template_when_absent(self):
+    def test_creates_metadata_from_the_template(self):
         with tempfile.TemporaryDirectory() as tmp:
-            store = os.path.join(tmp, ".continuity")
-            os.makedirs(store)
+            continuity_dir = os.path.join(tmp, ".continuity")
 
-            self.assertTrue(metadata_ensure(store))
+            self.assertTrue(metadata_ensure(continuity_dir))
 
-            metadata = read_metadata(store)
-            self.assertEqual(metadata["schema_version"], "1.0")
+            metadata = _read_json(os.path.join(continuity_dir, "metadata.json"))
+            self.assertEqual(metadata["schema_version"], CURRENT_SCHEMA_VERSION)
             self.assertIn("plugin_version", metadata)
-            self.assertTrue(metadata["created_at"])
+            # created_at is stamped now, not left as the template's placeholder.
+            self.assertTrue(metadata["created_at"].endswith("Z"))
+            self.assertTrue(metadata["created_at"][:2].isdigit())
+            self.assertEqual(_errors_log(continuity_dir), "")
 
-    def test_does_not_overwrite_an_existing_metadata_json(self):
+    def test_leaves_no_temp_debris(self):
         with tempfile.TemporaryDirectory() as tmp:
-            store = os.path.join(tmp, ".continuity")
-            os.makedirs(store)
-            target = os.path.join(store, "metadata.json")
-            with open(target, "w", encoding="utf-8") as handle:
-                json.dump({"schema_version": "1.0", "plugin_version": "9.9.9"}, handle)
+            continuity_dir = os.path.join(tmp, ".continuity")
 
-            self.assertTrue(metadata_ensure(store))
+            self.assertTrue(metadata_ensure(continuity_dir))
 
-            self.assertEqual(read_metadata(store)["plugin_version"], "9.9.9")
+            self.assertEqual(sorted(os.listdir(continuity_dir)), ["metadata.json"])
 
-
-class TestSchemaCompatibility(unittest.TestCase):
-    def test_current_schema_version_is_read_unchanged(self):
+    def test_does_not_touch_an_existing_metadata(self):
         with tempfile.TemporaryDirectory() as tmp:
-            store = os.path.join(tmp, ".continuity")
-            os.makedirs(store)
-            target = os.path.join(store, "metadata.json")
-            original = {
-                "schema_version": SCHEMA_VERSION,
-                "plugin_version": "0.1.0",
-                "created_at": "2026-01-01T00:00:00Z",
-                "retention_days": 60,
-                "git_tracked": True,
-            }
-            with open(target, "w", encoding="utf-8") as handle:
-                json.dump(original, handle)
-            with open(target, encoding="utf-8") as handle:
-                before = handle.read()
+            continuity_dir = os.path.join(tmp, ".continuity")
+            path = _write_metadata(continuity_dir, CURRENT_SCHEMA_VERSION)
+            before = _read_bytes(path)
 
-            self.assertTrue(metadata_check_and_migrate(store))
+            self.assertTrue(metadata_ensure(continuity_dir))
 
-            with open(target, encoding="utf-8") as handle:
-                after = handle.read()
-            self.assertEqual(before, after, "current schema must not be rewritten")
+            self.assertEqual(_read_bytes(path), before)
 
-    def test_absent_metadata_json_is_treated_as_current_and_safe_to_use(self):
+    def test_does_not_touch_an_unsupported_existing_metadata(self):
         with tempfile.TemporaryDirectory() as tmp:
-            store = os.path.join(tmp, ".continuity")
-            os.makedirs(store)
-            # Other store files exist but metadata.json does not -- the
-            # pre-metadata.json "1.0" case (contract's Q9 backward-compat
-            # rule).
-            with open(os.path.join(store, "decisions.md"), "w", encoding="utf-8") as handle:
-                handle.write("# Decision: x\n\n```\ncaptured_at: 1\ncategory: decision\n```\n\nBody.\n")
+            continuity_dir = os.path.join(tmp, ".continuity")
+            path = _write_metadata(continuity_dir, UNSUPPORTED_NEWER_SCHEMA_VERSION)
+            before = _read_bytes(path)
 
-            self.assertTrue(metadata_check_and_migrate(store))
-            self.assertFalse(os.path.exists(os.path.join(store, "metadata.json")))
+            self.assertTrue(metadata_ensure(continuity_dir))
 
-    def test_older_but_supported_schema_is_migrated_in_place(self):
+            self.assertEqual(_read_bytes(path), before)
+
+    def test_missing_template_fails_open_and_logs(self):
         with tempfile.TemporaryDirectory() as tmp:
-            store = os.path.join(tmp, ".continuity")
-            os.makedirs(store)
-            target = os.path.join(store, "metadata.json")
-            with open(target, "w", encoding="utf-8") as handle:
-                json.dump(
-                    {"schema_version": "0.9", "plugin_version": "0.0.9"}, handle
-                )
+            continuity_dir = os.path.join(tmp, ".continuity")
+            original = migrate.METADATA_TEMPLATE_PATH
+            migrate.METADATA_TEMPLATE_PATH = os.path.join(tmp, "absent.json.tmpl")
+            try:
+                self.assertFalse(metadata_ensure(continuity_dir))
+            finally:
+                migrate.METADATA_TEMPLATE_PATH = original
 
-            self.assertTrue(metadata_check_and_migrate(store))
-
-            migrated = read_metadata(store)
-            self.assertEqual(migrated["schema_version"], SCHEMA_VERSION)
-            # Migration rewrites the version marker in place; it must not
-            # invent or drop other fields.
-            self.assertEqual(migrated["plugin_version"], "0.0.9")
-
-    def test_unsupported_newer_schema_fails_open_with_no_write(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            store = os.path.join(tmp, ".continuity")
-            os.makedirs(store)
-            target = os.path.join(store, "metadata.json")
-            with open(target, "w", encoding="utf-8") as handle:
-                json.dump({"schema_version": "9.0", "plugin_version": "9.0.0"}, handle)
-            with open(target, encoding="utf-8") as handle:
-                before = handle.read()
-
-            self.assertFalse(metadata_check_and_migrate(store))
-
-            with open(target, encoding="utf-8") as handle:
-                after = handle.read()
-            self.assertEqual(before, after, "an unsupported schema must not be modified")
-
-            with open(os.path.join(store, "errors.log"), encoding="utf-8") as handle:
-                self.assertIn("unsupported-schema", handle.read())
+            self.assertFalse(
+                os.path.exists(os.path.join(continuity_dir, "metadata.json"))
+            )
+            self.assertIn("missing", _errors_log(continuity_dir))
 
 
 if __name__ == "__main__":
