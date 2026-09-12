@@ -31,8 +31,10 @@ secret_scan_line() {
     fi
 
     # PEM private-key header, including the labelled variants
-    # (RSA / EC / OPENSSH / ENCRYPTED).
-    if printf '%s\n' "$text" | grep -Eq -- '-----BEGIN [A-Z ]*PRIVATE KEY-----'; then
+    # (RSA / EC / OPENSSH / ENCRYPTED). Whitespace between every pair of
+    # words is one-or-more, not exactly one: a header re-flowed by an editor
+    # or pasted through a formatter is still a private key.
+    if printf '%s\n' "$text" | grep -Eq -- '-----BEGIN[[:space:]]+([A-Z0-9]+[[:space:]]+)*PRIVATE[[:space:]]+KEY-----'; then
         printf '%s\n' 'pem-private-key'
         return 1
     fi
