@@ -205,6 +205,11 @@ assert_eq 0 "$?" 'retention_prune exits 0 when the sessions subdirectory does no
 
 # --- .tmp.* crash debris, exact RETENTION_TMP_SWEEP_MINUTES boundary --------
 
+# Builds a UTC stamp, so every `touch -t` fed from it must run under TZ=UTC —
+# `touch -t` reads its argument as local wall-clock time, and this fixture sits
+# only 10 minutes either side of the sweep threshold, so an hours-wide timezone
+# offset would decide the result instead of the code under test. UTC also has
+# no DST transition to make a wall-clock time ambiguous.
 stamp_minutes_ago() {
     date -u -v-"$1"M +"$2" 2>/dev/null || date -u -d "$1 minutes ago" +"$2" 2>/dev/null
 }
@@ -217,8 +222,8 @@ printf 'debris\n' >"$OLD_TMP"
 printf 'debris\n' >"$NEW_TMP"
 OLD_TMP_MTIME=$(stamp_minutes_ago $((RETENTION_TMP_SWEEP_MINUTES + 10)) '%Y%m%d%H%M')
 NEW_TMP_MTIME=$(stamp_minutes_ago $((RETENTION_TMP_SWEEP_MINUTES - 10)) '%Y%m%d%H%M')
-touch -t "$OLD_TMP_MTIME" "$OLD_TMP"
-touch -t "$NEW_TMP_MTIME" "$NEW_TMP"
+TZ=UTC touch -t "$OLD_TMP_MTIME" "$OLD_TMP"
+TZ=UTC touch -t "$NEW_TMP_MTIME" "$NEW_TMP"
 
 retention_prune "$TMPSWEEP"
 assert_absent "$OLD_TMP" ".tmp.* debris older than RETENTION_TMP_SWEEP_MINUTES is deleted"
