@@ -24,6 +24,7 @@ Standard library only (Python 3.9+) — no third-party imports, ever.
 
 import json
 import os
+import re
 from datetime import datetime, timezone
 
 from lib.atomic_write import atomic_write
@@ -41,12 +42,34 @@ def _utc_now():
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+_MAJOR_PATTERN = re.compile(r"^(-?)([0-9]+)(?:\.|$)")
+
+# Any major this long is numeric but absurd — clamped so the comparison stays
+# a comparison instead of an arbitrary-precision conversion.
+_MAJOR_DIGIT_LIMIT = 9
+_MAJOR_CLAMP = 10 ** _MAJOR_DIGIT_LIMIT
+
+
 def _major(version):
-    """Return the integer major of a `<major>.<minor>` version, else None."""
-    try:
-        return int(str(version).split(".")[0])
-    except (TypeError, ValueError):
+    """Return the integer major of a `<major>.<minor>` version, else None.
+
+    Digits are counted before converting rather than handing the string
+    straight to `int()`: CPython 3.11+ refuses to convert a string of more
+    than 4300 digits, so `int()` alone would classify the same absurd-but-
+    numeric version as corrupted on one interpreter and as an unsupported
+    newer schema on another. A store must get the same verdict on every
+    Python this plugin supports, so an over-long run of digits is clamped —
+    it is still unambiguously a number, and still unambiguously not a major
+    version this plugin can read.
+    """
+    match = _MAJOR_PATTERN.match(str(version))
+    if match is None:
         return None
+    sign = -1 if match.group(1) else 1
+    digits = match.group(2)
+    if len(digits) > _MAJOR_DIGIT_LIMIT:
+        return sign * _MAJOR_CLAMP
+    return sign * int(digits)
 
 
 def _serialize(metadata):
@@ -70,12 +93,25 @@ def metadata_ensure(continuity_dir_path):
     if os.path.exists(metadata_path):
         return True
 
+    # The three template failures are three different operator problems — a
+    # broken install, a permission mistake, and a bad edit — so they log as
+    # three different failure kinds rather than one catch-all.
     try:
         with open(METADATA_TEMPLATE_PATH, "r", encoding="utf-8") as handle:
             metadata = json.load(handle)
-    except (OSError, ValueError):
+    except FileNotFoundError:
         continuity_log(
             continuity_dir_path, _OPERATION, "missing", "templates/metadata.json.tmpl"
+        )
+        return False
+    except OSError:
+        continuity_log(
+            continuity_dir_path, _OPERATION, "unreadable", "templates/metadata.json.tmpl"
+        )
+        return False
+    except ValueError:
+        continuity_log(
+            continuity_dir_path, _OPERATION, "corrupted", "templates/metadata.json.tmpl"
         )
         return False
 
