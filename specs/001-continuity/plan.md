@@ -156,7 +156,9 @@ hooks/
 
 commands/
 └── continuity-checkpoint.md    # /continuity-checkpoint: explicit checkpoint
-                                  # trigger (FR-008), invokes lib/write_memory.sh
+                                  # trigger (FR-008); Claude writes the staged
+                                  # note first (see Content Channel below),
+                                  # then invokes lib/write_memory.sh
 
 lib/
 ├── common.sh                   # Shared paths, logging, config resolution
@@ -165,8 +167,9 @@ lib/
 ├── atomic_write.sh              # write-to-temp-then-rename helper
 ├── secret_scan.sh                # Lightweight regex secret-pattern gate
 ├── select_context.sh              # SessionStart bounding/selection logic
-├── write_memory.sh                 # Background writer: consolidates one
-│                                     # trigger's signal into the durable files
+├── write_memory.sh                 # Background writer: consolidates a
+│                                     # pre-written staged note (see Content
+│                                     # Channel below) into the durable files
 ├── migrate.sh                       # Reads/writes metadata.json, migrates
 │                                      # schema versions forward when safe
 └── retention.sh                      # Prunes sessions/ and errors.log by
@@ -209,9 +212,62 @@ produced the first time a trigger or `SessionStart` runs there):
 │                                 config, default 60 days)
 ├── sessions/                     # Session Handoffs, one file per checkpoint,
 │   └── <UTC-timestamp>-<pid>.md   # pruned per config, default 60 days
+├── .staged/                        # Claude-written notes awaiting
+│   └── <kind>-<timestamp>-<pid>.md  # consolidation; consumed and removed by
+│                                     # write_memory.sh (see Content Channel)
 └── .lock/                          # transient; created by lib/lock.sh,
                                       # removed on release or stale-break
 ```
+
+## Content Channel (resolves analyze finding C1)
+
+`write_memory.sh` is pure shell — it consolidates, it never composes prose,
+per the "no LLM-based memory operation" constraint above. But a Decision's
+rationale, a Learning's body, a Task's description, and a Handoff's summary
+are natural-language content only Claude (the agent in the session, not the
+hook) can produce. No hook receives that text today: `capture-trigger.sh`
+and `session-end.sh` fire from tool-call/session-end payloads that carry no
+note body, and `/continuity-checkpoint` invokes `write_memory.sh` with no
+content argument either. This is the gap analyze's C1 finding names.
+
+**Fix**: Claude stages the note itself, as a file, before any trigger runs
+`write_memory.sh`:
+
+1. When Claude recognizes it has just made a decision, finished a task,
+   learned something worth keeping, or is closing a session, it writes one
+   small staged-note file via its own Write tool to
+   `.continuity/.staged/<kind>-<UTC-timestamp>-<pid>.md` — `<kind>` is one of
+   `decision`, `task`, `learning`, `handoff`. The note body is exactly the
+   prose Claude already composed; no new format to learn, just a file
+   instead of a chat message.
+2. Only after the staged file exists does the relevant trigger run:
+   `/continuity-checkpoint` (T018) checks `.continuity/.staged/` itself
+   before invoking `write_memory.sh`; `capture-trigger.sh` and
+   `session-end.sh` are unchanged — they still detach `write_memory.sh`
+   unconditionally on their existing signals, and a run with nothing staged
+   is FR-011's ordinary no-op.
+3. `write_memory.sh <cwd> <trigger-kind>` reads every file currently in
+   `.continuity/.staged/`, secret-scans and appends each one into the
+   matching durable file (`decisions.md`/`tasks.md`/`learnings.md`/the
+   `sessions/*.md` handoff) via `atomic_write.sh`, then removes the staged
+   file it consumed — consolidation only, exactly as already planned. A
+   staged file with no corresponding trigger simply waits for the next one
+   (`capture-trigger.sh` or `SessionEnd`) rather than being lost.
+4. Fail-open applies here too (FR-012): if a staged file is malformed or the
+   secret scanner rejects a line, that line (or the whole staged file, if
+   nothing survives) is dropped and logged to `errors.log`, and
+   `write_memory.sh` still exits 0 having consolidated whatever else it
+   found.
+
+This keeps every existing constraint intact — no LLM call inside the hook
+path, no new content on every interaction, background writes stay
+fire-and-forget — because the composition step is something Claude was
+already going to do (recognize and phrase the note); staging it as a file is
+the only new mechanism, and it is a plain filesystem write, not a process or
+a socket.
+
+See `contracts/hook-io-contract.md`'s new "Content Channel" section for the
+staged-note file format, and `tasks.md` T017a for the task this adds.
 
 **Structure Decision**: Single-project, shell-only layout. `hooks/` and
 `commands/` are the plugin's event surface; `lib/` holds every piece of
@@ -243,7 +299,7 @@ Every file this feature introduces, grouped by the order they are built in
 | `templates/*.tmpl` | Seed content for a first-ever `.continuity/` store |
 | `lib/select_context.sh` | Reads the durable files + recent session handoffs, bounds to the ~100–200 line target, labels provenance |
 | `hooks/session-start.sh` | Calls `select_context.sh`, emits the `additionalContext` hook output, fails open |
-| `lib/write_memory.sh` | Consolidates one trigger's signal into `state.md`/`decisions.md`/`tasks.md`/`learnings.md`/`sessions/*.md`, using `lock.sh` + `atomic_write.sh` + `secret_scan.sh` |
+| `lib/write_memory.sh` | Consolidates every staged note in `.continuity/.staged/` into `state.md`/`decisions.md`/`tasks.md`/`learnings.md`/`sessions/*.md`, using `lock.sh` + `atomic_write.sh` + `secret_scan.sh`, then removes each consumed staged file |
 | `hooks/capture-trigger.sh` | `PostToolUse` dispatcher: classifies whether the just-completed tool call is a meaningful-change signal; if so, detaches `write_memory.sh` and returns immediately |
 | `hooks/session-end.sh` | `SessionEnd` dispatcher: always detaches a final-checkpoint `write_memory.sh` call |
 | `commands/continuity-checkpoint.md` | Explicit `/continuity-checkpoint` slash command wired to `write_memory.sh` |

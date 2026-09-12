@@ -170,11 +170,13 @@ end it, start a new session, confirm the opening context includes both
   `.continuity/` store exceeding the ~100–200 line target and asserts the
   output of `lib/select_context.sh` stays within it; builds an empty/absent
   store and asserts empty output with no error (covers FR-005/FR-007).
-- [ ] T014 [P] [US1] Create `tests/test_write_memory_basic.sh`: invokes
-  `lib/write_memory.sh` against a fixture `cwd` with a synthetic
-  `file-change` trigger and a decision-shaped input, and asserts
+- [ ] T014 [P] [US1] Create `tests/test_write_memory_basic.sh`: writes a
+  fixture staged note to `.continuity/.staged/decision-<ts>-<pid>.md`
+  (T017a's Content Channel), then invokes `lib/write_memory.sh` against
+  the fixture `cwd` with a synthetic `file-change` trigger, and asserts
   `decisions.md` gains a well-formed entry (per data-model.md's Decision
-  Record fields) and a new file appears under `.continuity/sessions/`.
+  Record fields), the staged file is gone, and a new file appears under
+  `.continuity/sessions/`.
 
 ### Implementation for User Story 1
 
@@ -199,27 +201,42 @@ end it, start a new session, confirm the opening context includes both
   `bash hooks/session-start.sh` against a populated fixture project prints
   valid JSON containing the labeled context block, and against an absent
   `.continuity/` prints valid JSON with no `additionalContext` key.
+- [ ] T017a [US1] Establish the Content Channel: define
+  `.continuity/.staged/<kind>-<UTC-timestamp>-<pid>.md` per
+  `contracts/hook-io-contract.md`'s new "Content Channel" section
+  (`<kind>` one of `decision`/`task`/`learning`/`handoff`, body is plain
+  text/Markdown) as the sole path by which Claude-composed note content
+  reaches `write_memory.sh` — no hook or LLM call inside `lib/` ever
+  composes prose itself. This task has no script of its own; it is the
+  directory convention T017 and T018 below are written against.
+  Done when: `contracts/hook-io-contract.md` and `plan.md`'s Content
+  Channel section agree on the path format, and T017/T018 reference it
+  rather than an undefined "determine what content" step.
 - [ ] T017 [US1] Create `lib/write_memory.sh` implementing
   `write_memory <cwd> <trigger-kind>`: acquires the store lock
-  (`lib/lock.sh`), reads the latest durable files, determines what new
-  decision/task/learning/state content (if any) the current interaction
-  produced, runs `secret_scan_line` over every new line before writing (R5;
-  a rejected line is dropped and logged as `secret-blocked`, the rest of the
-  entry still written), appends/updates the relevant durable file(s) via
-  `atomic_write.sh`, writes a `sessions/<timestamp>-<pid>.md` handoff file
+  (`lib/lock.sh`), reads every file currently under `.continuity/.staged/`
+  (T017a), runs `secret_scan_line` over every line of each before writing
+  (R5; a rejected line is dropped and logged as `secret-blocked`, the rest
+  of the entry still written), appends/updates the relevant durable
+  file(s) via `atomic_write.sh` by routing on each staged file's `<kind>`
+  prefix, writes a `sessions/<timestamp>-<pid>.md` handoff file
   (data-model.md's Session Handoff fields, `trigger` set to the passed-in
-  kind), and releases the lock; produces no file changes at all if there is
-  nothing meaningful to persist (FR-011). Depends on T004, T005, T006, T007.
+  kind, body taken from any staged `handoff` note), removes each staged
+  file it consumed, and releases the lock; produces no file changes at all
+  if `.staged/` is empty (FR-011). Depends on T004, T005, T006, T007,
+  T017a.
   Done when: `tests/test_write_memory_basic.sh` (T014) passes.
 - [ ] T018 [US1] [P] Create `commands/continuity-checkpoint.md`: a slash
-  command that synchronously invokes
+  command whose own logic (run by Claude) first writes a staged note under
+  `.continuity/.staged/` (T017a) for whatever is worth capturing right
+  now, then synchronously invokes
   `lib/write_memory.sh "$CLAUDE_PROJECT_DIR" explicit-checkpoint` (or the
   equivalent Claude Code plugin variable for the project root) and reports
   the result per `contracts/hook-io-contract.md`'s checkpoint-command
-  output shape.
-  Done when: running the command against a fixture project with pending
-  content produces a new `sessions/*.md` file and a confirmation message;
-  against a fixture project with nothing new, produces a "nothing to
+  output shape. Depends on T017a.
+  Done when: running the command against a fixture project with a staged
+  note produces a new `sessions/*.md` file and a confirmation message;
+  against a fixture project with nothing staged, produces a "nothing to
   checkpoint" message and no new file.
 - [ ] T019 [US1] Create `hooks/capture-trigger.sh` implementing the
   `PostToolUse` classification from `contracts/hook-io-contract.md`

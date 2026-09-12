@@ -84,6 +84,38 @@ persisted content for a live instruction (Q4/FR-018):
 Any section with nothing to show is omitted entirely rather than emitted
 empty.
 
+## Content Channel — staged notes (resolves analyze finding C1)
+
+`write_memory.sh` never composes prose; it only consolidates. The
+natural-language content of a Decision's rationale, a Learning's body, a
+Task's description, or a Handoff's summary is written by Claude directly,
+as a file, before any trigger fires:
+
+- **Path**: `.continuity/.staged/<kind>-<UTC-timestamp>-<pid>.md`, where
+  `<kind>` is one of `decision`, `task`, `learning`, `handoff`.
+- **Format**: plain text/Markdown — exactly the note body Claude already
+  composed for the corresponding entry in data-model.md (a Decision Record,
+  Task Entry, Learning, or Session Handoff's Body field). No front-matter or
+  schema beyond the filename's `<kind>` tag; `write_memory.sh` routes on
+  that tag alone.
+- **Writer**: Claude's own Write tool, run inline in the session — not a
+  hook, not a background process, not an LLM call inside `write_memory.sh`.
+  This is the one piece of composition a shell script cannot do, and it is
+  work the session was already doing (recognizing and phrasing the note).
+- **Consumer**: `write_memory.sh` reads every file under `.staged/`,
+  secret-scans and appends each into its matching durable file via
+  `atomic_write.sh`, and removes the staged file once consumed. A staged
+  file left over from a run where no trigger fired simply waits for the
+  next `capture-trigger.sh` or `SessionEnd` invocation.
+- **Fail-open**: a staged file that fails the secret scanner in full, or is
+  unreadable/malformed, is dropped and logged to `errors.log` (FR-012);
+  `write_memory.sh` still exits 0 and still consolidates every other staged
+  file it found.
+
+This adds no new hook and no new event: it is a filesystem convention
+`/continuity-checkpoint` and (in later phases, as needed) other
+Claude-driven call sites use before invoking `write_memory.sh`.
+
 ## `PostToolUse` — `hooks/capture-trigger.sh`
 
 **Matcher**: `Edit|Write|MultiEdit|Bash` (registered in `hooks/hooks.json`).
@@ -137,11 +169,17 @@ dispatcher.
 
 ## `/continuity-checkpoint` — explicit checkpoint command
 
-**Input**: invoked as a slash command; no stdin JSON payload — the command
-markdown at `commands/continuity-checkpoint.md` runs
+**Input**: invoked as a slash command; no stdin JSON payload. Before
+invoking the writer, the command's own logic (run by Claude, per the
+Content Channel above) writes a staged note to `.continuity/.staged/` for
+whatever is worth capturing right now, then
+`commands/continuity-checkpoint.md` runs
 `lib/write_memory.sh <cwd> explicit-checkpoint` synchronously (this is a
 user-invoked, one-shot action, not a background trigger, so there is no
 latency constraint to honor here — the user is explicitly waiting for it).
+If nothing was staged, `write_memory.sh` still runs and reports the
+existing "nothing new" no-op (FR-011) — the checkpoint command never skips
+invoking it.
 
 **Output**: A short confirmation message (e.g., "Checkpoint written to
 .continuity/sessions/…" or "Nothing new to checkpoint") — the one path in
