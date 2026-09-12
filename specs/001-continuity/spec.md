@@ -451,3 +451,5 @@ instead of guessing past them.
   worktrees, where "the project" and therefore the correct `.continuity/`
   location may be ambiguous?]
   Answer: **MVP scope is a single project root only:** Continuity operates on the project root where it is installed and stores all project context under that project’s `.continuity/` directory; multi-project/global context is out of scope for the MVP.
+- [x] [NEEDS CLARIFICATION: Q11 — minimum Python version and Windows scope]
+  Answer: **Python 3.9+; native Windows is in scope for the MVP, alongside macOS/Linux.** The plan must use only stdlib APIs available on 3.9 across all three platforms, and the process-detachment and atomic-rename mechanisms must have a working native-Windows path (not WSL-only) rather than punting it to Risks.
