@@ -9,11 +9,15 @@ and over. Continuity fixes that by persisting a project's important context
 to plain text files, and loading a small, relevant slice of it back in at the
 start of the next session. Full rationale: [`docs/intent/continuity.md`](docs/intent/continuity.md).
 
-**Status**: design complete, implementation not yet started. This repository
-currently holds the intent doc, the full feature specification, and the
-implementation plan (see [`specs/001-continuity/`](specs/001-continuity/));
-the plugin's own scripts (`hooks/`, `commands/`, `lib/`) are scaffolded as
-empty directories awaiting implementation.
+**Status**: repository skeleton laid out, implementation in progress. This
+repository holds the intent doc, the full feature specification, and the
+implementation plan (see [`specs/001-continuity/`](specs/001-continuity/)).
+`lib/common.sh` (path resolution, fail-open logging, metadata defaults) and
+the `tests/run_tests.sh` harness exist and pass; the rest of the plugin's
+scripts (`hooks/`, `commands/`, the remaining `lib/` modules, `templates/`,
+`.claude-plugin/`) are scaffolded as empty directories awaiting the
+implementation phases in
+[`specs/001-continuity/tasks.md`](specs/001-continuity/tasks.md).
 
 ## Why a plugin, not a service
 
@@ -64,8 +68,9 @@ docs/             Intent doc and install/usage docs
 specs/            Feature spec, implementation plan, and tasks (spec-kit)
 ```
 
-`hooks/`, `commands/`, `lib/`, and `templates/` are currently empty
-directories (tracked via `.gitkeep`) — see
+`hooks/`, `commands/`, `templates/`, and `.claude-plugin/` are currently
+empty directories (tracked via `.gitkeep`); `lib/` holds `common.sh` with
+the rest of its modules still to come — see
 [`specs/001-continuity/tasks.md`](specs/001-continuity/tasks.md) for the
 task-by-task build order.
 
