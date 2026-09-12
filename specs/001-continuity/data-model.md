@@ -37,10 +37,10 @@ Superseded by newer state notes rather than accumulated indefinitely").
   sourced from the intent doc or discovered during work.
 
 **Validation rules**:
-- `updated_at` MUST be present and parseable; `select_context.sh` treats a
+- `updated_at` MUST be present and parseable; `select_context.py` treats a
   file missing or failing this check as corrupted and skips it (FR-013),
   logging to `errors.log`.
-- A write MUST NOT reduce `state.md` to an empty file — `write_memory.sh`
+- A write MUST NOT reduce `state.md` to an empty file — `write_memory.py`
   writes the new version to a temp path and only renames over the original
   if the new content is non-empty (guards against a trigger that produces no
   meaningful summary silently wiping prior state).
@@ -63,7 +63,7 @@ entry).
   `SessionStart` subset (isolated per-entry, not per-file, since
   `decisions.md` is append-only and one bad entry should not hide the
   others).
-- `secret_scan.sh` runs over the entry body before it is appended (R5);
+- `secret_scan.py` runs over the entry body before it is appended (R5);
   a match drops that line, not the whole entry, and logs the drop.
 
 ## Entity: Task Entry
@@ -82,7 +82,7 @@ for an existing entry rather than appended as a new one).
 - `status` MUST be one of the three enumerated values; an unrecognized value
   is treated as malformed and the entry is excluded from `SessionStart`
   loading (fail open at the entry level).
-- `select_context.sh` prioritizes `active` and `blocked` entries over `done`
+- `select_context.py` prioritizes `active` and `blocked` entries over `done`
   ones when bounding to the line-budget target (most-recent-first within
   each status), since active/unfinished work is what User Story 1's
   Independent Test checks for first.
@@ -120,7 +120,7 @@ checkpointing in the same second).
   not just `SessionEnd`.
 
 **Validation rules**:
-- Governed by `lib/retention.sh`: any file under `sessions/` older than the
+- Governed by `lib/retention.py`: any file under `sessions/` older than the
   configured retention window (default 60 days, `metadata.json` →
   `retention_days`) is deleted. Information promoted into a durable file
   (state/decisions/tasks/learnings) before pruning is unaffected by that
@@ -148,7 +148,7 @@ than injected context).
   (e.g. `aws-key-pattern`), never the matched text.
 
 **Validation rules**:
-- Governed by the same `retention.sh` window as `sessions/` (default 60
+- Governed by the same `retention.py` window as `sessions/` (default 60
   days per Q8) — old lines are trimmed from the head of the file.
 - A failure to write to `errors.log` itself is the one failure Continuity
   does not attempt to log (would recurse); it is silently swallowed, per
@@ -174,13 +174,13 @@ compatibility handling depends on (Q9).
 **Validation rules**:
 - `schema_version` compatibility: a plugin supports its own current schema
   version and exactly one previous version. Reading a file at the previous
-  version triggers `lib/migrate.sh` to rewrite it forward (atomically, via
-  `atomic_write.sh`) before use. Reading a file at an unsupported *newer*
+  version triggers `lib/migrate.py` to rewrite it forward (atomically, via
+  `atomic_write.py`) before use. Reading a file at an unsupported *newer*
   version (a teammate on a newer plugin wrote it) causes the current
   operation to fail open — skip, log `unsupported-schema`, do not modify the
   file — exactly per Q9's answer.
 - `retention_days` and `git_tracked` are user-configurable (a developer may
-  hand-edit `metadata.json`); `write_memory.sh` and `retention.sh` read this
+  hand-edit `metadata.json`); `write_memory.py` and `retention.py` read this
   file fresh on every run rather than caching it, since a hand-edit mid-
   session (an explicit spec edge case) must take effect without a restart.
 
@@ -191,7 +191,7 @@ compatibility handling depends on (Q9).
 - **Task Entry**: `active` → `blocked` → `active` (unblocked) → `done`.
   `done` is terminal; a task is never deleted, only marked `done`, so it
   remains available as project history and is simply deprioritized by
-  `select_context.sh`'s bounding logic.
+  `select_context.py`'s bounding logic.
 - **`.continuity/` store as a whole**: `absent` → `present, schema-current`
   → (on a plugin upgrade) `present, schema-outdated` → (on next read/write)
   `present, schema-current` (migrated) or `present, schema-unsupported`

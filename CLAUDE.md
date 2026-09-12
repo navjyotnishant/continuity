@@ -6,10 +6,10 @@ project is held to, and `specs/001-continuity/plan.md` for the full design.
 
 ## What this repo is
 
-Continuity: a Claude Code plugin, written entirely in POSIX-compatible Bash
-plus coreutils, that gives a Claude Code session memory of a project's prior
-sessions via plain Markdown/text files under `.continuity/`. No Go, Python,
-Node, database, server, or cloud dependency — see
+Continuity: a Claude Code plugin, written entirely in Python 3.9+ standard
+library (no third-party packages), that gives a Claude Code session memory
+of a project's prior sessions via plain Markdown/text files under
+`.continuity/`. No Go, Node, database, server, or cloud dependency — see
 `docs/intent/continuity.md` for why.
 
 ## Layout
@@ -34,7 +34,7 @@ lives in `lib/` so each hook script stays a thin, fast dispatcher.
 No build step (plain shell scripts, nothing to compile).
 
 ```bash
-bash tests/run_tests.sh
+python3 tests/run_tests.py
 ```
 
 ## Conventions

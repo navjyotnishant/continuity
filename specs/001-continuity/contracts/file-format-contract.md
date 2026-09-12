@@ -55,8 +55,8 @@ files (or vice versa) has defined, not undefined, behavior (Q9).
 - Filename format: `<UTC-timestamp, ISO-8601 basic format, colons/periods
   stripped for filesystem safety>-<pid>.md`, e.g.
   `20260912T140501Z-48213.md`. This format is depended on by
-  `lib/retention.sh` (parses the timestamp from the filename to decide
-  pruning eligibility without opening the file) and by `select_context.sh`
+  `lib/retention.py` (parses the timestamp from the filename to decide
+  pruning eligibility without opening the file) and by `select_context.py`
   (sorts by filename to find the most recent handoff without a directory
   listing's mtime, which can be unreliable across some filesystems/clones).
 - Body format: `captured_at` and `trigger` as a fenced metadata line,
@@ -64,13 +64,16 @@ files (or vice versa) has defined, not undefined, behavior (Q9).
 
 ## Atomicity (applies to every write above)
 
-- Every write goes through `lib/atomic_write.sh`: content is written to
-  `<target>.tmp.<pid>` in the same directory as `<target>`, then `mv`'d onto
-  `<target>`. `mv` within the same filesystem is atomic on POSIX systems, so
-  a reader never observes a partially-written file (FR-014). A crash between
-  the write and the `mv` leaves only an orphaned `.tmp.<pid>` file, which
-  `lib/retention.sh` also sweeps (any `.tmp.*` file older than an hour is
-  removed as crash debris).
+- Every write goes through `lib/atomic_write.py`: content is written via
+  `tempfile.NamedTemporaryFile` to a temp file in the same directory as
+  `<target>` (prefix `<target's basename>.tmp.` so the file is recognizable
+  as crash debris), then `os.replace()`'d onto `<target>`. `os.replace()` is
+  atomic on both POSIX and native Windows when source and destination are on
+  the same filesystem, so a reader never observes a partially-written file
+  (FR-014) on any of the three target platforms (Q11). A crash between the
+  write and the `os.replace()` leaves only an orphaned `<target's
+  basename>.tmp.*` file, which `lib/retention.py` also sweeps (any such file
+  older than an hour is removed as crash debris).
 
 ## Compatibility guarantee this contract provides
 
