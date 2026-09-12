@@ -3,6 +3,10 @@
 # OS cruft
 .DS_Store
 
+# Python cruft — no build step, but the interpreter still leaves this behind
+__pycache__/
+*.pyc
+
 # Secret-bearing local config (OSPS-BR-07.01) — Continuity itself has no
 # .env/credentials of its own, but a plugin installed into a project must
 # never pick these up.

@@ -21,7 +21,8 @@ commands/         Slash commands (e.g. /continuity-checkpoint)
 lib/              Shared logic: locking, atomic writes, secret scan, context
                   selection, migration, retention
 templates/        Seed content for a first-ever .continuity/ store
-tests/            Plain-Bash assertion scripts (no test framework)
+tests/            Stdlib `unittest` tests, run via tests/run_tests.py (no
+                  third-party test framework)
 docs/             Intent doc + install/usage docs
 specs/            Feature spec, plan, tasks (spec-kit workflow)
 ```
@@ -31,7 +32,7 @@ lives in `lib/` so each hook script stays a thin, fast dispatcher.
 
 ## Build & test
 
-No build step (plain shell scripts, nothing to compile).
+No build step (interpreted Python, nothing to compile).
 
 ```bash
 python3 tests/run_tests.py
@@ -39,8 +40,8 @@ python3 tests/run_tests.py
 
 ## Conventions
 
-- Target bash 3.2 (macOS stock) and Linux bash ≥ 4 — no bashisms newer than
-  that.
+- Target Python 3.9+ stdlib only, across macOS, Linux, and native Windows —
+  no API newer than 3.9, no third-party import, ever.
 - Every hook fails open: wrap the real work, log to `.continuity/errors.log`
   on error, never block or crash the interactive session (FR-012).
 - Memory writes are fire-and-forget detached background processes, never

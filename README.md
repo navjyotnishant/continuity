@@ -12,8 +12,8 @@ start of the next session. Full rationale: [`docs/intent/continuity.md`](docs/in
 **Status**: repository skeleton laid out, implementation in progress. This
 repository holds the intent doc, the full feature specification, and the
 implementation plan (see [`specs/001-continuity/`](specs/001-continuity/)).
-`lib/common.sh` (path resolution, fail-open logging, metadata defaults) and
-the `tests/run_tests.sh` harness exist and pass; the rest of the plugin's
+`lib/common.py` (path resolution, fail-open logging, metadata defaults) and
+the `tests/run_tests.py` harness exist and pass; the rest of the plugin's
 scripts (`hooks/`, `commands/`, the remaining `lib/` modules, `templates/`,
 `.claude-plugin/`) are scaffolded as empty directories awaiting the
 implementation phases in
@@ -23,12 +23,14 @@ implementation phases in
 
 Continuity ships strictly as a Claude Code plugin distributed via a
 GitHub-hosted marketplace — no separate server, no database installation, no
-cloud dependency, and no Go, Python, Node, or other standalone runtime. The
-entire implementation is POSIX-compatible Bash plus coreutils already present
-wherever Claude Code's own hooks run. See
+cloud dependency, and no Go, Node, or other standalone runtime. The entire
+implementation is Python 3.9+ standard library only — no third-party
+packages, no `pip install` step, no `requirements.txt`/`pyproject.toml`.
+Python is not a new runtime this plugin introduces: it is already required to
+run Claude Code hooks in this environment. See
 [`specs/001-continuity/plan.md`](specs/001-continuity/plan.md) → Technical
-Context for the full constraint set and why each alternative (Python, an
-embedded database, `flock`) was rejected.
+Context for the full constraint set and why each alternative (an embedded
+database, `flock`, `pytest`) was rejected.
 
 ## How it works (design)
 
@@ -62,14 +64,15 @@ commands/         Slash commands (e.g. /continuity-checkpoint)
 lib/              Shared logic: locking, atomic writes, secret scan,
                   context selection, schema migration, retention
 templates/        Seed content for a first-ever .continuity/ store
-tests/            Plain-Bash assertion scripts — no test framework dependency
+tests/            Stdlib `unittest` tests, run via tests/run_tests.py — no
+                  third-party test framework dependency
 scripts/hooks/    This repo's own git hooks (secret-scan pre-commit)
 docs/             Intent doc and install/usage docs
 specs/            Feature spec, implementation plan, and tasks (spec-kit)
 ```
 
 `hooks/`, `commands/`, `templates/`, and `.claude-plugin/` are currently
-empty directories (tracked via `.gitkeep`); `lib/` holds `common.sh` with
+empty directories (tracked via `.gitkeep`); `lib/` holds `common.py` with
 the rest of its modules still to come — see
 [`specs/001-continuity/tasks.md`](specs/001-continuity/tasks.md) for the
 task-by-task build order.
@@ -86,7 +89,7 @@ git-tracked by default — see spec.md Q1/FR-020).
 ## Development
 
 ```bash
-bash tests/run_tests.sh
+python3 tests/run_tests.py
 ```
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the branching model, style

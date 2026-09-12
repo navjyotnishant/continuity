@@ -1,7 +1,7 @@
 # Contributing to Continuity
 
-Continuity is a Claude Code plugin written entirely in POSIX-compatible Bash
-plus standard coreutils — no Go, Python, Node, or package manager (see
+Continuity is a Claude Code plugin written entirely in Python 3.9+ standard
+library — no Go, Node, third-party package, or package manager (see
 `specs/001-continuity/plan.md` → Technical Context). Keep that constraint in
 mind before proposing a dependency; it is a hard requirement, not a style
 preference.
@@ -18,22 +18,22 @@ preference.
 ## Running the tests
 
 ```bash
-bash tests/run_tests.sh
+python3 tests/run_tests.py
 ```
 
-The suite is plain Bash assertions (`tests/test_*.sh`) — no test framework is
-installed or required (see plan.md's rejection of `bats-core`).
+The suite is stdlib `unittest` (`tests/test_*.py`) — no third-party test
+framework is installed or required (see plan.md's rejection of `pytest`).
 
 ## Style
 
-- Target bash 3.2 (macOS's stock version) and any Linux bash ≥ 4 —
-  `specs/001-continuity/plan.md` → Technical Context.
+- Target Python 3.9+ standard library only, across macOS, Linux, and native
+  Windows — `specs/001-continuity/plan.md` → Technical Context.
 - Every hook script must fail open: wrap the real work, log failures locally
   to `.continuity/errors.log`, and never let a Continuity error surface as a
   blocking error to the developer (FR-012).
-- Never introduce a runtime dependency (no Python/Node/Go), a database, a
-  server process, or a network call — these are constitution-level
-  constraints, not implementation preferences.
+- Never introduce a runtime dependency (no third-party package, no Node/Go),
+  a database, a server process, or a network call — these are
+  constitution-level constraints, not implementation preferences.
 
 ## Submitting a change
 
