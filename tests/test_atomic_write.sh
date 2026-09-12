@@ -2,8 +2,17 @@
 # Author: Navjyot Nishant
 # Created: 2026-09-12
 # Last updated: 2026-09-12
-# Description: Unit tests for lib/atomic_write.sh (T004) — temp-then-rename
-#              durability, the empty-content refusal, and crash residue.
+# Description: Bash-side unit tests for lib/atomic_write.sh (T004) —
+#              temp-then-rename durability, the empty-content refusal, and
+#              crash residue.
+#
+# NOT the T009 deliverable. CONTINUI-32 specifies tests/test_atomic_write.py,
+# run via `python3 -m unittest tests.test_atomic_write`; that file is T009.
+# This file exists because specs/001-continuity/tasks.md T009 and plan.md
+# ("plain Bash assertions, no framework") still describe the Bash form, and
+# tests/run_tests.sh (T003) discovers tests/test_*.sh. The two suites pin the
+# same contract and are satisfied by one implementation; whichever of the
+# ticket or the spec is wrong, resolving that is not this file's job.
 #
 # Contract this test pins for lib/atomic_write.sh (T004):
 #   source lib/atomic_write.sh
