@@ -268,9 +268,11 @@ class TestCaptureTrigger(unittest.TestCase):
                 "Captured by the trigger",
                 read(os.path.join(tmp, ".continuity", "decisions.md")),
             )
-            # Not the sub-100ms proof (that is T020's timing test) — this only
-            # shows the hook did not wait for the writer it launched.
-            self.assertLess(elapsed, 2.0)
+            # Not the sub-100ms proof (that is T020's timing test, with its
+            # own sleeping-stub margin) — this bound only has to fail if the
+            # hook ever starts waiting for the writer it launched. Measured
+            # locally at ~41 ms including interpreter startup.
+            self.assertLess(elapsed, 0.25)
 
     def test_non_git_bash_call_is_not_a_signal(self):
         with tempfile.TemporaryDirectory() as tmp:
