@@ -241,6 +241,13 @@ user-facing error in the middle of normal work.
 - **FR-019**: The system's own operation MUST NOT require network access or
   send any project content to an external service as part of persisting or
   loading context (consistent with "no cloud dependency").
+- **FR-020**: Because `.continuity/` is git-tracked by default (per the
+  intent doc's answered question on storage, reaffirmed as Q1 below), the
+  system MUST document, at install time and in-repo, that persisted content
+  becomes part of shared git history, and MUST provide a documented,
+  low-friction way for a developer to exclude `.continuity/` from version
+  control on a given project (e.g., an add-to-`.gitignore` step). This does
+  not by itself screen persisted content for secrets — see Concerns below.
 
 ### Key Entities
 
@@ -315,6 +322,54 @@ user-facing error in the middle of normal work.
   ignored) is not assumed here because it is a genuine open question with
   security implications — see [NEEDS CLARIFICATION] Q1.
 
+## Concerns & Policy Tensions
+
+These are not new scope questions; they are places where two already-answered
+constraints pull against each other, or where an answer resolves the letter
+of a question but leaves a residual risk. They are flagged rather than
+silently resolved, per this stage's instruction to surface contradictions
+instead of guessing past them.
+
+- **Secrets can enter shared git history by default.** Q1 answers that
+  `.continuity/` is git-tracked by default, with an opt-out available. FR-020
+  operationalizes the opt-out, but neither the intent doc nor Q1's answer
+  requires any content screening before a decision/learning/state entry is
+  written. A session that records a credential, connection string, or
+  client-confidential detail in `decisions.md` or `learnings.md` commits it
+  to permanent shared history before any developer notices — the opt-out
+  only helps a developer who already knows to use it. This directly conflicts
+  with this toolkit's own secret-scanning-is-a-hard-gate posture for code
+  changes (`CONVENTIONS.md` §review suite). Recommend the plan stage decide
+  whether writes get a lightweight secret-pattern check before persisting, or
+  whether the MVP accepts this risk and documents it prominently instead.
+- **"No separate server process" vs. the Q3 async-write mechanism.**
+  Q3 answers that memory writes use a "fire-and-forget" detached background
+  process so the triggering hook returns immediately. A background process
+  that outlives its triggering hook call is, by degree, the same shape as a
+  small persistent server — the constraint and the answer do not draw a
+  bright line between "a detached one-shot background task" (in scope) and
+  "a standalone server process" (explicitly out of scope). FR-010 already
+  flags the mechanism as open; this note makes the underlying contradiction
+  explicit so the plan stage defines the boundary precisely (e.g., the
+  process must exit after completing one write and must never bind a socket
+  or listen for further events).
+- **File locking (Q5) assumes a filesystem that supports advisory locks.**
+  The "no separate server" constraint rules out a lock broker, so Q5's
+  file-locking answer depends on the local filesystem honoring advisory
+  locks reliably. This does not hold on all network or shared filesystems.
+  Acceptable for a single-machine MVP; flag as a known gap rather than a
+  silently assumed guarantee.
+- **Unbounded durable growth vs. bounded, non-database selection.** Q6
+  answers that durable files (`state.md`, `decisions.md`, `tasks.md`,
+  `learnings.md`) are retained indefinitely, while FR-005/Q2 require the
+  session-start subset to stay bounded without a database, embeddings, or
+  vector store. A purely heuristic (e.g., recency-based) selection method
+  will degrade in relevance quality as a project's durable history grows
+  over months, with no stated point at which that degradation gets measured
+  or addressed. Q2's own answer already anticipates re-measuring after the
+  MVP ships; this note ties that follow-up explicitly to Q6's indefinite-
+  retention choice.
+
 ## Open questions
 
 - [x] [NEEDS CLARIFICATION: Q1 — Should `.continuity/` be committed to git
@@ -375,17 +430,21 @@ user-facing error in the middle of normal work.
   question a reviewer or installer will ask, and it is not stated in the
   intent doc.]
   Answer: For the MVP, **Continuity should require no permissions beyond what Claude Code already grants to a plugin running within the project**. It needs access to read/write the project’s `.continuity/` directory and read the project information necessary to maintain context. It should not require access to external services, user-level files, cloud storage, or credentials. Any future capability that requires broader access should be explicitly opt-in rather than part of the default installation.
-- [NEEDS CLARIFICATION: Q8 — Where do "log the failure locally" entries
+- [x] [NEEDS CLARIFICATION: Q8 — Where do "log the failure locally" entries
   (FR-012) live, how long are they kept, and must they be scrubbed of any
   content that caused the failure (e.g., a corrupted file's raw bytes),
   given the same sensitivity concerns raised in Q1?]
-- [x] [NEEDS CLARIFICATION: Q9 — Since the plugin can be updated independently
+  Answer: Store failures in `.continuity/errors.log`; retain them for the configurable retention period (default **60 days**), and scrub logs so they contain only operational metadata—never raw file contents, conversation content, secrets, credentials, or other sensitive data.
+- [NEEDS CLARIFICATION: Q9 — Since the plugin can be updated independently
   of any given project's `.continuity/` content, what compatibility
   contract applies if a newer plugin version changes the file
   categories/format described in FR-002? Without one, an updated plugin
   reading an older project's files (or vice versa, a teammate on an older
-  plugin version reading a newer project's files) has undefined behavior.]
-  Answer: Store lightweight failure logs in .continuity/errors.log, with no conversation content or secrets, and prune them using the configurable retention period (default 60 days).
+  plugin version reading a newer project's files) has undefined behavior.
+  (Note: an earlier draft of this answer duplicated Q8's answer text
+  verbatim and did not actually address versioning/compatibility; that
+  copy-paste error has been reverted and this question is genuinely still
+  open — it needs its own answer, not Q8's.)]
 - [x] [NEEDS CLARIFICATION: Q10 — Is the scope a single project root only, or
   must Continuity also define behavior for monorepos or multiple git
   worktrees, where "the project" and therefore the correct `.continuity/`
