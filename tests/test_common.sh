@@ -48,6 +48,18 @@ assert_eq "$FIXTURE/.continuity" "$(continuity_dir "$FIXTURE/")" \
 continuity_dir "" >/dev/null 2>&1
 assert_eq "1" "$?" "continuity_dir rejects an empty cwd"
 
+assert_eq "/var/tmp/continuity-abs/.continuity" "$(continuity_dir "/var/tmp/continuity-abs")" \
+	"continuity_dir works with absolute paths"
+
+REL_OUT=$(cd "$FIXTURE" && continuity_dir "sub/project")
+assert_eq "sub/project/.continuity" "$REL_OUT" \
+	"continuity_dir works with relative paths"
+
+FIXTURE_SPECIAL="$FIXTURE/has space & stuff"
+mkdir -p "$FIXTURE_SPECIAL"
+assert_eq "$FIXTURE_SPECIAL/.continuity" "$(continuity_dir "$FIXTURE_SPECIAL")" \
+	"continuity_dir works with paths containing spaces or special characters"
+
 # --- continuity_log: appends one well-shaped line --------------------------
 CONTINUITY_DIR=$(continuity_dir "$FIXTURE")
 export CONTINUITY_DIR
@@ -79,6 +91,38 @@ assert_eq "2" "$(wc -l <"$CONTINUITY_DIR/errors.log" | tr -d ' ')" \
 	"continuity_log flattens newlines in the detail to keep one line per entry"
 assert_eq "4" "$(tail -1 "$CONTINUITY_DIR/errors.log" | tr '|' '\n' | wc -l | tr -d ' ')" \
 	"continuity_log flattens pipes in the detail to keep four fields"
+
+# A fresh call must extend errors.log, never truncate what is already there.
+LINES_BEFORE_APPEND=$(wc -l <"$CONTINUITY_DIR/errors.log" | tr -d ' ')
+FIRST_LINE_BEFORE_APPEND=$(head -1 "$CONTINUITY_DIR/errors.log")
+continuity_log "write-decisions" "write-failed" "a third entry"
+assert_eq "$((LINES_BEFORE_APPEND + 1))" "$(wc -l <"$CONTINUITY_DIR/errors.log" | tr -d ' ')" \
+	"continuity_log appends without truncating an existing errors.log"
+assert_eq "$FIRST_LINE_BEFORE_APPEND" "$(head -1 "$CONTINUITY_DIR/errors.log")" \
+	"continuity_log leaves prior lines in errors.log untouched"
+
+# An empty detail is still a well-shaped four-field line, just with an empty
+# last field.
+continuity_log "session-start-load" "corrupted" ""
+assert_eq "4" "$(tail -1 "$CONTINUITY_DIR/errors.log" | tr '|' '\n' | wc -l | tr -d ' ')" \
+	"continuity_log handles empty detail strings"
+assert_eq "" "$(tail -1 "$CONTINUITY_DIR/errors.log" | cut -d'|' -f4 | sed 's/^ *//;s/ *$//')" \
+	"continuity_log's empty detail leaves field 4 empty"
+
+# Very long operation/failure-kind/detail strings must not be truncated or
+# split into extra lines.
+LONG=$(printf 'x%.0s' $(seq 1 5000))
+continuity_log "$LONG" "$LONG" "$LONG"
+assert_eq "4" "$(tail -1 "$CONTINUITY_DIR/errors.log" | tr '|' '\n' | wc -l | tr -d ' ')" \
+	"continuity_log handles very long operation, failure-kind, or detail strings without splitting fields"
+LAST_LEN=$(tail -1 "$CONTINUITY_DIR/errors.log" | cut -d'|' -f4 | sed 's/^ *//' | wc -c | tr -d ' ')
+assert_eq "5001" "$LAST_LEN" \
+	"continuity_log preserves the full length of a very long detail string"
+
+# Unicode in the detail must survive untouched.
+continuity_log "write-decisions" "write-failed" "café 日本語 🎉"
+assert_eq "café 日本語 🎉" "$(tail -1 "$CONTINUITY_DIR/errors.log" | cut -d'|' -f4 | sed 's/^ *//;s/ *$//')" \
+	"continuity_log handles unicode characters in the detail field"
 
 # Logging into a store that does not exist is swallowed, never fatal.
 CONTINUITY_DIR="$FIXTURE/absent/.continuity"
