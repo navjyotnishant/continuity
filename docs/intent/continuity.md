@@ -51,23 +51,30 @@ Not stated.
   breakage.
 
 ## Open questions
-- What specifically counts as "context" to persist (decisions, facts about
+- [x] What specifically counts as "context" to persist (decisions, facts about
   the user, code/file history, preferences, all of the above)? Not stated.
-- What storage mechanism satisfies "no database installation requirement"
+  Answer: For Continuity, **“context” means the project information that would materially help a future or concurrent Claude Code session understand and continue the work without repeating the previous session**. This includes important architectural and implementation decisions, stable facts about the project, the current state of the work, active or unfinished tasks, known constraints, discoveries and learnings, established conventions, and relevant session handoffs. It does not mean storing or replaying the entire conversation; transient debugging, repeated explanations, routine tool activity, and other information with little future value should generally not become persistent context. The goal is to preserve the **state and knowledge of the work**, so another session can pick up where the project actually stands.
+- [x] What storage mechanism satisfies "no database installation requirement"
   and "no separate server" — is a plain file/directory acceptable, and does
   an embedded (no-install) database count as a "database" for this
   constraint? Not stated.
-- Is continuity scoped per-project, per-user across all projects, or both?
+  Answer: For the MVP, use **project-local Markdown/text files under `.continuity/`**. This satisfies the **“no database installation requirement”** while keeping the memory human-readable, portable, Git-friendly, and easy to inspect or recover. We can start with structured files such as `state.md`, `decisions.md`, `tasks.md`, and `learnings.md`, and only introduce a local embedded store such as SQLite later if retrieval or concurrency requirements prove that files alone are insufficient.
+- [x] Is continuity scoped per-project, per-user across all projects, or both?
   Not stated.
-- What triggers a memory write, if not every interaction (end of session, an
+  Answer: **Continuity should be primarily scoped per-project, with optional per-user/global context later.** The MVP should keep the persistent project context under the project root in `.continuity/`, so each repository maintains its own state, decisions, tasks, constraints, and learnings. A future version could add a separate user-level memory layer for preferences or coding habits that should apply across projects, but that should remain separate from project continuity.
+- [x] What triggers a memory write, if not every interaction (end of session, an
   explicit save, a periodic checkpoint)? Not stated.
-- Is there a quantified latency/performance budget, or is "feels exactly as
+  Answer: **Memory writes should be triggered by meaningful changes in project state rather than every interaction.** For the MVP, Continuity should use lightweight signals such as significant file changes, meaningful git diffs, completed or changed tasks, important decisions, test milestones, and explicit session checkpoints. A `SessionEnd` event can trigger a final checkpoint, but it should not be the only trigger because another session may need the context while the first session is still active. The write should happen asynchronously so it never blocks the developer’s Claude Code interaction.
+- [x] Is there a quantified latency/performance budget, or is "feels exactly as
   fast" the only bar, to be judged subjectively? Not stated.
-- How does Continuity detect its own failure in order to degrade gracefully,
+  Answer: For the MVP, **“feels exactly as fast” should be the qualitative product requirement**, rather than imposing an arbitrary hard latency number before we understand Claude Code’s hook behavior. Continuity must not block or noticeably delay Claude Code’s interactive workflow. Background capture and memory processing should be asynchronous, and any `SessionStart` context loading should be lightweight enough that the user does not perceive a meaningful difference. Once the MVP is implemented, we should **measure the actual overhead** and establish quantitative performance targets based on those results.
+- [x] How does Continuity detect its own failure in order to degrade gracefully,
   and what counts as "failure" (read error, write error, corrupted memory
   file)? Not stated.
-- Which Claude Code plugin marketplace is the distribution target? Not
+  Answer: Continuity should use **simple health checks and fail-open behavior**. Each operation should have clear success/failure handling, such as verifying that `.continuity/` exists and is readable/writable, checking that state files are valid before using them, and detecting timeouts or errors from background processing. If any Continuity operation fails, the plugin should **log the failure locally and skip the continuity operation rather than interrupting Claude Code**. The key principle is that failure should be isolated: **Continuity can become unavailable, but it must never prevent Claude Code from continuing normally.**
+- [x] Which Claude Code plugin marketplace is the distribution target? Not
   stated.
+  Answer: github repo
 
 ---
 
