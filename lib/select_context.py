@@ -196,6 +196,7 @@ def _entries(continuity_dir_path, filename, require_status=False):
             continue
         current["body"].append(line)
 
+    entries = [entry for entry in entries if not _is_section_header(entry)]
     valid = [entry for entry in entries if _is_valid(entry, require_status)]
     skipped = len(entries) - len(valid)
     if skipped:
@@ -208,6 +209,18 @@ def _entries(continuity_dir_path, filename, require_status=False):
             "{} of {} entries skipped as invalid".format(skipped, len(entries)),
         )
     return valid
+
+
+def _is_section_header(entry):
+    """True for a `##` heading that is structure rather than a lost entry.
+
+    data-model.md gives `learnings.md` a `## Conventions` section alongside
+    its entries, so not every `##` line is an entry that failed validation.
+    A heading with no metadata and no body has nothing to have lost: it is
+    skipped silently, where a heading with content but missing fields is a
+    real corruption and is logged as one.
+    """
+    return not entry["fields"] and not _strip_blanks(entry["body"])
 
 
 def _is_valid(entry, require_status):
