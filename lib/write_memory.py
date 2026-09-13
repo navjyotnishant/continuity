@@ -28,6 +28,7 @@ from lib.atomic_write import atomic_write
 from lib.common import continuity_dir, continuity_log
 from lib.lock import lock_acquire, lock_release
 from lib.migrate import metadata_check_and_migrate, metadata_ensure
+from lib.retention import retention_prune
 from lib.secret_scan import secret_scan_line
 
 STAGED_DIRNAME = ".staged"
@@ -83,9 +84,28 @@ def write_memory(cwd, trigger_kind):
         return None
 
     try:
-        return _consolidate(continuity_dir_path, staged, trigger_kind)
+        handoff_path = _consolidate(continuity_dir_path, staged, trigger_kind)
+        _prune(continuity_dir_path)
+        return handoff_path
     finally:
         lock_release(continuity_dir_path)
+
+
+def _prune(continuity_dir_path):
+    """Sweep what is past its retention window, under the lock we already hold.
+
+    Retention piggybacks on this run rather than scheduling a process of its
+    own (plan.md's Implementation Order step 4), and only on the path that
+    actually wrote: a store that was skipped is a store nothing may delete
+    from. A prune failure must not cost the caller the handoff it just got,
+    so the write is reported even when the sweep is not.
+    """
+    try:
+        retention_prune(continuity_dir_path)
+    except Exception as error:  # noqa: BLE001 — fail open (FR-012)
+        continuity_log(
+            continuity_dir_path, "retention", "write-failed", type(error).__name__
+        )
 
 
 def _consolidate(continuity_dir_path, staged, trigger_kind):
