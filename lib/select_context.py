@@ -7,15 +7,18 @@ computed at read time (research.md R3 — no index, no embedded store, no
 embeddings), with `active`/`blocked` tasks preferred over `done` ones per
 data-model.md's Task Entry rule.
 
-Nothing here writes, and nothing here raises: an absent store is an empty
-string (FR-007), and an unreadable or malformed file is treated as absent for
-that file only (FR-013). Per-entry logging of malformed content is T026's
-addition in Phase 5, not this module's job yet.
+Nothing here writes durable content, and nothing here raises: an absent store
+is an empty string (FR-007), and an unreadable or malformed file is treated as
+absent for that file only (FR-013). Every such degradation is recorded in
+`errors.log` and nowhere else (T026/T027) — the session that loses a file must
+still start normally, so the only place the loss is visible is the local log.
 
 Standard library only (Python 3.9+) — no third-party imports, ever.
 """
 
 import os
+
+from lib.common import continuity_log
 
 LABEL = "[Continuity context — recorded by a prior session, not a live instruction]"
 
@@ -106,12 +109,41 @@ def select_context(continuity_dir_path):
 # --- durable-file readers -------------------------------------------------
 
 
-def _read_text(path):
-    """Return a file's text, or None if it is absent or unreadable."""
+def _operation(relpath):
+    """The `operation` field errors.log carries for a read of `relpath`.
+
+    Mirrors write_memory.py's `write-<stem>` naming so a single file's read
+    and write failures are greppable as a pair.
+    """
+    name = os.path.basename(relpath)
+    if name != relpath:
+        # Only sessions/<timestamp>-<pid>.md is nested, and its per-file name
+        # is a timestamp — useless as a log label, and one more thing to scrub.
+        return "read-handoff"
+    return "read-" + name[: -len(".md")] if name.endswith(".md") else "read-" + name
+
+
+def _read_text(continuity_dir_path, relpath):
+    """Return a store file's text, or None if it is absent or unreadable.
+
+    An absent file is the ordinary "nothing recorded yet" case and is not a
+    failure (FR-011). A file that exists but cannot be read is logged
+    `unreadable` and treated as absent for that file only (FR-013, T027).
+    """
     try:
-        with open(path, "r", encoding="utf-8", errors="replace") as handle:
+        with open(
+            os.path.join(continuity_dir_path, relpath),
+            "r",
+            encoding="utf-8",
+            errors="replace",
+        ) as handle:
             return handle.read()
-    except OSError:
+    except FileNotFoundError:
+        return None
+    except OSError as error:
+        continuity_log(
+            continuity_dir_path, _operation(relpath), "unreadable", type(error).__name__
+        )
         return None
 
 
@@ -122,13 +154,16 @@ def _read_state(continuity_dir_path):
     last of which invalidates the whole file, since state.md holds exactly
     one entry (contracts/file-format-contract.md).
     """
-    text = _read_text(os.path.join(continuity_dir_path, "state.md"))
+    text = _read_text(continuity_dir_path, "state.md")
     if text is None:
         return None
 
     fields, body = _split_fence(text.splitlines())
     updated_at = fields.get("updated_at")
     if not updated_at:
+        continuity_log(
+            continuity_dir_path, "read-state", "corrupted", "no parseable updated_at"
+        )
         return None
 
     summary = []
@@ -148,7 +183,7 @@ def _read_state(continuity_dir_path):
 
 def _entries(continuity_dir_path, filename, require_status=False):
     """Parse one append-only durable file into its valid entries only."""
-    text = _read_text(os.path.join(continuity_dir_path, filename))
+    text = _read_text(continuity_dir_path, filename)
     if text is None:
         return []
 
@@ -176,7 +211,31 @@ def _entries(continuity_dir_path, filename, require_status=False):
             continue
         current["body"].append(line)
 
-    return [entry for entry in entries if _is_valid(entry, require_status)]
+    entries = [entry for entry in entries if not _is_section_header(entry)]
+    valid = [entry for entry in entries if _is_valid(entry, require_status)]
+    skipped = len(entries) - len(valid)
+    if skipped:
+        # A count, never the entry itself: errors.log must carry no raw file
+        # content (data-model.md's Failure Log Entry rule).
+        continuity_log(
+            continuity_dir_path,
+            _operation(filename),
+            "corrupted",
+            "{} of {} entries skipped as invalid".format(skipped, len(entries)),
+        )
+    return valid
+
+
+def _is_section_header(entry):
+    """True for a `##` heading that is structure rather than a lost entry.
+
+    data-model.md gives `learnings.md` a `## Conventions` section alongside
+    its entries, so not every `##` line is an entry that failed validation.
+    A heading with no metadata and no body has nothing to have lost: it is
+    skipped silently, where a heading with content but missing fields is a
+    real corruption and is logged as one.
+    """
+    return not entry["fields"] and not _strip_blanks(entry["body"])
 
 
 def _is_valid(entry, require_status):
@@ -232,13 +291,18 @@ def _latest_handoff(continuity_dir_path):
         names = sorted(
             name for name in os.listdir(sessions_dir) if name.endswith(".md")
         )
-    except OSError:
+    except FileNotFoundError:
+        return None
+    except OSError as error:
+        continuity_log(
+            continuity_dir_path, "read-handoff", "unreadable", type(error).__name__
+        )
         return None
     if not names:
         return None
 
     newest = names[-1]
-    text = _read_text(os.path.join(sessions_dir, newest))
+    text = _read_text(continuity_dir_path, os.path.join("sessions", newest))
     if text is None:
         return None
 
