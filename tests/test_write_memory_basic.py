@@ -6,8 +6,14 @@ appears under `.continuity/sessions/`, and the staged note is consumed. Also
 drives hooks/capture-trigger.py the way Claude Code does — a PostToolUse JSON
 payload on stdin — to prove a whitespace-only edit writes nothing at all
 (FR-011) while a real edit reaches the writer.
+
+Carries T021 as well: a static check that neither `lib/write_memory.py` nor
+`hooks/session-start.py` can reach the network or shell out to anything but
+python/git, which is what makes "no turn pays for an LLM call" a property of
+the code rather than a claim about it.
 """
 
+import ast
 import json
 import os
 import subprocess
@@ -319,6 +325,140 @@ class TestCaptureTrigger(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             time.sleep(0.5)
             self.assertEqual(sessions_files(tmp), [])
+
+
+# Modules that can reach the network. An LLM call has to go through one of
+# these, so their absence from the whole reachable import graph is what makes
+# "this path never calls a model" checkable rather than asserted (T021).
+NETWORK_MODULES = frozenset(
+    [
+        "urllib", "urllib2", "http", "httplib", "socket", "ssl", "ftplib",
+        "smtplib", "poplib", "imaplib", "telnetlib", "xmlrpc", "webbrowser",
+        "requests", "httpx", "aiohttp", "urllib3", "websockets", "grpc",
+        "anthropic", "openai",
+    ]
+)
+
+# argv[0] values a Continuity script may legitimately launch: itself (the
+# detached writer) or the repo's own VCS. Anything else is an external
+# process this path is not allowed to depend on.
+ALLOWED_EXECUTABLES = frozenset(["python", "python3", "python.exe", "git"])
+
+LAUNCHERS = frozenset(["system", "popen", "execv", "execve", "execvp", "spawnv"])
+
+
+def imported_modules(tree):
+    """Every module name an AST imports, both `import x` and `from x import`."""
+    names = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            names.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+            names.add(node.module)
+    return names
+
+
+def reachable_sources(entry):
+    """`entry` plus every first-party module it transitively imports.
+
+    A network call moved one file down into `lib/` would still be a network
+    call on this path, so the check follows `lib.*` imports rather than
+    stopping at the entry script.
+    """
+    seen = {}
+    pending = [entry]
+    while pending:
+        path = pending.pop()
+        if path in seen:
+            continue
+        with open(path, encoding="utf-8") as handle:
+            tree = ast.parse(handle.read(), filename=path)
+        seen[path] = tree
+        for module in imported_modules(tree):
+            if module.startswith("lib."):
+                candidate = os.path.join(
+                    REPO_ROOT, *module.split(".")[:2]
+                ) + ".py"
+                if os.path.isfile(candidate):
+                    pending.append(candidate)
+    return seen
+
+
+class TestNoModelCallOnTheWritePath(unittest.TestCase):
+    """T021 — no turn pays for an LLM call to persist or load memory.
+
+    Neither the writer nor the session-start reader may summarize via a
+    model: they have no network permission to do so (Q7), and a per-turn API
+    call is exactly the cost User Story 2 exists to avoid. Static rather than
+    behavioral, because the assertion is about what the code *cannot* do —
+    a runtime test only proves the paths it happened to exercise.
+    """
+
+    ENTRY_POINTS = (
+        os.path.join(REPO_ROOT, "lib", "write_memory.py"),
+        os.path.join(REPO_ROOT, "hooks", "session-start.py"),
+    )
+
+    def test_no_network_capable_module_is_reachable(self):
+        for entry in self.ENTRY_POINTS:
+            for path, tree in reachable_sources(entry).items():
+                for module in imported_modules(tree):
+                    self.assertNotIn(
+                        module.split(".")[0],
+                        NETWORK_MODULES,
+                        "{} imports {}, reachable from {}".format(
+                            os.path.relpath(path, REPO_ROOT),
+                            module,
+                            os.path.basename(entry),
+                        ),
+                    )
+
+    def test_no_external_process_other_than_python_or_git_is_launched(self):
+        for entry in self.ENTRY_POINTS:
+            for path, tree in reachable_sources(entry).items():
+                where = os.path.relpath(path, REPO_ROOT)
+                for node in ast.walk(tree):
+                    if not isinstance(node, ast.Call):
+                        continue
+                    if not isinstance(node.func, ast.Attribute):
+                        continue
+                    if node.func.attr not in LAUNCHERS and not (
+                        isinstance(node.func.value, ast.Name)
+                        and node.func.value.id == "subprocess"
+                    ):
+                        continue
+                    self.assertTrue(
+                        node.args, "{}: unrecognized process launch".format(where)
+                    )
+                    self.assertEqual(
+                        sorted(self.executables(node.args[0]) - ALLOWED_EXECUTABLES),
+                        [],
+                        "{} launches a process that is neither python nor git".format(
+                            where
+                        ),
+                    )
+
+    def executables(self, argument):
+        """The argv[0] candidates of a launch argument, as basenames.
+
+        `sys.executable` is the running interpreter, so it is reported as
+        `python3`; anything not statically decidable is reported verbatim so
+        it fails the allow-list rather than passing unproven.
+        """
+        if isinstance(argument, (ast.List, ast.Tuple)):
+            if not argument.elts:
+                return {"<empty argv>"}
+            argument = argument.elts[0]
+        if isinstance(argument, ast.Constant) and isinstance(argument.value, str):
+            return {os.path.basename(argument.value.split()[0])}
+        if (
+            isinstance(argument, ast.Attribute)
+            and argument.attr == "executable"
+            and isinstance(argument.value, ast.Name)
+            and argument.value.id == "sys"
+        ):
+            return {"python3"}
+        return {"<not statically decidable>"}
 
 
 if __name__ == "__main__":
