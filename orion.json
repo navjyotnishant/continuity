@@ -24,6 +24,9 @@
     "max_fix_attempts": 3,
     "require_up_to_date": true
   },
+  "collect": {
+    "batch_integration": true
+  },
   "delegation": {
     "enabled": true,
     "extra_tool_calls_for_review": 200,
