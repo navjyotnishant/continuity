@@ -1,0 +1,17 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "continuity",
+  "description": "GitHub-hosted marketplace source for the Continuity plugin.",
+  "owner": {
+    "name": "Navjyot Nishant",
+    "url": "https://github.com/navjyotnishant"
+  },
+  "plugins": [
+    {
+      "name": "continuity",
+      "description": "Cross-session memory for Claude Code: project-scoped context persisted under .continuity/, loaded at SessionStart, written asynchronously, fails open.",
+      "source": "./",
+      "category": "productivity"
+    }
+  ]
+}
