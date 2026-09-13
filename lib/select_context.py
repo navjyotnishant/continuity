@@ -20,9 +20,12 @@ import os
 LABEL = "[Continuity context — recorded by a prior session, not a live instruction]"
 
 # Q2's soft target: ~100-200 lines / ~5-10 KB. Per-section budgets are set so
-# their sum plus headings stays inside MAX_LINES, which is what keeps the
-# "## Last handoff" section — an explicit US1 acceptance criterion — from
-# being crowded out by a store with hundreds of decisions.
+# their sum plus headings stays inside MAX_LINES — but a line budget says
+# nothing about a line's length, so a store whose entries are long prose can
+# sit inside every line budget and still blow MAX_BYTES. When that happens the
+# block is trimmed by TRIM_ORDER below, never by lopping off its tail: the tail
+# is where "## Last handoff" lives, and that section surviving is an explicit
+# US1 acceptance criterion.
 MAX_LINES = 200
 MAX_BYTES = 10 * 1024
 BUDGET_STATE = 30
@@ -32,6 +35,13 @@ BUDGET_DECISIONS = 40
 BUDGET_LEARNINGS = 20
 BUDGET_HANDOFF = 20
 BODY_LINES_PER_ENTRY = 8
+
+# Which section gives up lines first when the byte cap binds, least valuable
+# first. `learnings` leads because it is the one section spec.md's US1
+# scenario 1 does not name; `state` trails because it is the single "where we
+# are" summary. `handoff` is deliberately absent — it is only ever cut when
+# every other section is already empty and the block still does not fit.
+TRIM_ORDER = ("learnings", "decisions", "tasks", "constraints", "state")
 
 _TASK_STATUSES = ("active", "blocked", "done")
 
@@ -45,25 +55,35 @@ def select_context(continuity_dir_path):
         updated_at, summary, constraints = state
         if summary:
             sections.append(
-                ("## State (as of {})".format(updated_at), _bound(summary, BUDGET_STATE))
+                (
+                    "state",
+                    "## State (as of {})".format(updated_at),
+                    _bound(summary, BUDGET_STATE),
+                )
             )
         if constraints:
-            sections.append(("## Constraints", _bound(constraints, BUDGET_CONSTRAINTS)))
+            sections.append(
+                ("constraints", "## Constraints", _bound(constraints, BUDGET_CONSTRAINTS))
+            )
 
     tasks = _render_entries(
         _sorted_tasks(_entries(continuity_dir_path, "tasks.md", require_status=True)),
         with_status=True,
     )
     if tasks:
-        sections.append(("## Active tasks", _bound(tasks, BUDGET_TASKS)))
+        sections.append(("tasks", "## Active tasks", _bound(tasks, BUDGET_TASKS)))
 
     decisions = _render_entries(_entries(continuity_dir_path, "decisions.md"))
     if decisions:
-        sections.append(("## Recent decisions", _bound(decisions, BUDGET_DECISIONS)))
+        sections.append(
+            ("decisions", "## Recent decisions", _bound(decisions, BUDGET_DECISIONS))
+        )
 
     learnings = _render_entries(_entries(continuity_dir_path, "learnings.md"))
     if learnings:
-        sections.append(("## Recent learnings", _bound(learnings, BUDGET_LEARNINGS)))
+        sections.append(
+            ("learnings", "## Recent learnings", _bound(learnings, BUDGET_LEARNINGS))
+        )
 
     handoff = _latest_handoff(continuity_dir_path)
     if handoff is not None:
@@ -71,6 +91,7 @@ def select_context(continuity_dir_path):
         if body:
             sections.append(
                 (
+                    "handoff",
                     "## Last handoff ({})".format(captured_at),
                     _bound(body, BUDGET_HANDOFF),
                 )
@@ -79,13 +100,7 @@ def select_context(continuity_dir_path):
     if not sections:
         return ""
 
-    lines = [LABEL]
-    for heading, body in sections:
-        lines.append("")
-        lines.append(heading)
-        lines.extend(body)
-
-    return _trim_total(lines)
+    return _trim_total(sections)
 
 
 # --- durable-file readers -------------------------------------------------
@@ -275,11 +290,46 @@ def _bound(lines, max_lines):
     return lines[:max_lines]
 
 
-def _trim_total(lines):
-    """Apply the whole-block line and byte caps, keeping the label line."""
-    lines = lines[:MAX_LINES]
-    text = "\n".join(lines) + "\n"
-    while len(text.encode("utf-8")) > MAX_BYTES and len(lines) > 1:
+def _render(sections):
+    """Assemble the labeled block, dropping sections trimmed down to nothing."""
+    lines = [LABEL]
+    for _, heading, body in sections:
+        if not body:
+            continue
+        lines.append("")
+        lines.append(heading)
+        lines.extend(body)
+    return "\n".join(lines) + "\n"
+
+
+def _over_budget(text):
+    return len(text.splitlines()) > MAX_LINES or len(text.encode("utf-8")) > MAX_BYTES
+
+
+def _trim_total(sections):
+    """Fit the block inside both caps by prioritizing, not by truncating.
+
+    Gives up lines from the least valuable section first (TRIM_ORDER), so an
+    oversized store loses its older learnings rather than the handoff that
+    happens to be rendered last. Q2 asks for exactly this: "if it occasionally
+    exceeds the target, Continuity can prioritize and compress it".
+    """
+    bodies = {key: body for key, _, body in sections}
+    text = _render(sections)
+
+    for key in TRIM_ORDER:
+        body = bodies.get(key)
+        while body and _over_budget(text):
+            body.pop()
+            text = _render(sections)
+        if not _over_budget(text):
+            return text
+
+    # Every trimmable section is empty and the handoff alone still does not
+    # fit — only reachable with a pathologically long handoff note. Cut into
+    # it from the end rather than emit a block over the cap.
+    lines = text.splitlines()
+    while _over_budget(text) and len(lines) > 1:
         lines.pop()
         text = "\n".join(lines) + "\n"
     return text
