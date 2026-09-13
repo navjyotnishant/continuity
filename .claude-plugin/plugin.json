@@ -1,0 +1,6 @@
+{
+  "name": "continuity",
+  "version": "0.1.0",
+  "description": "Cross-session memory for Claude Code: persists project-scoped context under .continuity/ as plain Markdown, loads a bounded subset at SessionStart, writes asynchronously on meaningful-change triggers, and fails open on any error.",
+  "hooks": "./hooks/hooks.json"
+}
