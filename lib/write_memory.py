@@ -75,7 +75,6 @@ def write_memory(cwd, trigger_kind):
         # Unsupported newer schema: no write of any kind, already logged.
         return None
     metadata_ensure(continuity_dir_path)
-    _seed_store(continuity_dir_path)
 
     if not lock_acquire(continuity_dir_path):
         continuity_log(
@@ -84,6 +83,11 @@ def write_memory(cwd, trigger_kind):
         return None
 
     try:
+        # Seeding is itself a store write, so it belongs inside the lock: a
+        # run that never got the lock must leave the store exactly as it
+        # found it, not leave behind the templates of files it then declined
+        # to append to.
+        _seed_store(continuity_dir_path)
         handoff_path = _consolidate(continuity_dir_path, staged, trigger_kind)
         _prune(continuity_dir_path)
         return handoff_path
