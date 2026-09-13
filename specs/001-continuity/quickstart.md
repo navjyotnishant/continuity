@@ -4,7 +4,7 @@ These scenarios prove the feature end-to-end, in the same terms as the
 spec's own Independent Tests for User Stories 1–3. Run them after
 Implementation Order phases 1–5 (plan.md) are complete and the plugin is
 installed in a real Claude Code session — the unit/integration test suite
-(`tests/run_tests.sh`) covers the logic in isolation, but only this
+(`tests/run_tests.py`) covers the logic in isolation, but only this
 quickstart exercises the real Claude Code hook runtime end-to-end (the one
 gap plan.md's Risks section calls out as unautomatable pre-release).
 

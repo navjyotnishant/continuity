@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Secret-scanning pre-commit gate (OSPS-BR-07.01).
+# Enable with: git config core.hooksPath scripts/hooks
+set -eu
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "pre-commit: gitleaks not on PATH — secret scan skipped." >&2
+  echo "Install it (e.g. 'brew install gitleaks') to enable this gate." >&2
+  exit 0
+fi
+
+gitleaks protect --staged --redact -v
