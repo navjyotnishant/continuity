@@ -27,16 +27,17 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from lib.atomic_write import atomic_write
 from lib.common import continuity_dir, continuity_log
 from lib.lock import lock_acquire, lock_release
-from lib.migrate import metadata_check_and_migrate, metadata_ensure
+from lib.migrate import (
+    SEED_FILES,
+    metadata_check_and_migrate,
+    metadata_ensure,
+    seed_store,
+)
+from lib.retention import retention_prune
 from lib.secret_scan import secret_scan_line
 
 STAGED_DIRNAME = ".staged"
 SESSIONS_DIRNAME = "sessions"
-
-TEMPLATES_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "templates"
-)
-SEED_FILES = ("state.md", "decisions.md", "tasks.md", "learnings.md")
 
 # The Content Channel's four `<kind>` tags, and where each one lands.
 DURABLE_FILE = {
@@ -74,7 +75,6 @@ def write_memory(cwd, trigger_kind):
         # Unsupported newer schema: no write of any kind, already logged.
         return None
     metadata_ensure(continuity_dir_path)
-    _seed_store(continuity_dir_path)
 
     if not lock_acquire(continuity_dir_path):
         continuity_log(
@@ -83,9 +83,33 @@ def write_memory(cwd, trigger_kind):
         return None
 
     try:
-        return _consolidate(continuity_dir_path, staged, trigger_kind)
+        # Seeding is itself a store write, so it belongs inside the lock: a
+        # run that never got the lock must leave the store exactly as it
+        # found it, not leave behind the templates of files it then declined
+        # to append to.
+        seed_store(continuity_dir_path)
+        handoff_path = _consolidate(continuity_dir_path, staged, trigger_kind)
+        _prune(continuity_dir_path)
+        return handoff_path
     finally:
         lock_release(continuity_dir_path)
+
+
+def _prune(continuity_dir_path):
+    """Sweep what is past its retention window, under the lock we already hold.
+
+    Retention piggybacks on this run rather than scheduling a process of its
+    own (plan.md's Implementation Order step 4), and only on the path that
+    actually wrote: a store that was skipped is a store nothing may delete
+    from. A prune failure must not cost the caller the handoff it just got,
+    so the write is reported even when the sweep is not.
+    """
+    try:
+        retention_prune(continuity_dir_path)
+    except Exception as error:  # noqa: BLE001 — fail open (FR-012)
+        continuity_log(
+            continuity_dir_path, "retention", "write-failed", type(error).__name__
+        )
 
 
 def _consolidate(continuity_dir_path, staged, trigger_kind):
@@ -145,39 +169,6 @@ def _consolidate(continuity_dir_path, staged, trigger_kind):
             )
 
     return handoff_path
-
-
-def _seed_store(continuity_dir_path):
-    """Fill in any durable file this store does not have yet (T029).
-
-    Runs only once there is something staged to write, so a trigger with
-    nothing to persist still creates nothing at all (FR-011) — this seeds a
-    store that is about to be written to, it does not conjure one for every
-    project a hook happens to fire in.
-
-    Never raises and never overwrites: a file that already exists is left
-    exactly as it is, including one the user edited by hand.
-    """
-    timestamp = _now()
-    for name in SEED_FILES:
-        target = os.path.join(continuity_dir_path, name)
-        if os.path.exists(target):
-            continue
-        try:
-            with open(
-                os.path.join(TEMPLATES_DIR, name + ".tmpl"), encoding="utf-8"
-            ) as handle:
-                template = handle.read()
-            # state.md is the one seed that is invalid without a value: its
-            # reader drops the whole file when `updated_at` is unparseable.
-            atomic_write(target, template.replace("{updated_at}", timestamp))
-        except OSError as error:
-            continuity_log(
-                continuity_dir_path,
-                "seed-" + name[: -len(".md")],
-                "write-failed",
-                type(error).__name__,
-            )
 
 
 # --- staged notes (the Content Channel) -----------------------------------

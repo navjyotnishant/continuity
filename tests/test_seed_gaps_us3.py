@@ -29,6 +29,7 @@ from unittest.mock import patch
 REPO_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 sys.path.insert(0, REPO_ROOT)
 
+import lib.migrate as migrate_module
 import lib.write_memory as write_memory_module
 from lib.select_context import _entries, select_context
 from lib.write_memory import SEED_FILES, write_memory
@@ -107,8 +108,12 @@ class TestAllFourSeedFilesCanFailIndependently(unittest.TestCase):
             def fail_every_seed(target, _content):
                 raise OSError("simulated failure for " + os.path.basename(target))
 
-            with patch.object(write_memory_module, "atomic_write", fail_every_seed):
-                write_memory(tmp, "file-change")
+            # Seeding lives in lib/migrate.py (seed_store) and the durable
+            # append in lib/write_memory.py, so both writers have to fail for
+            # a file to stay absent once its seed failed.
+            with patch.object(migrate_module, "atomic_write", fail_every_seed):
+                with patch.object(write_memory_module, "atomic_write", fail_every_seed):
+                    write_memory(tmp, "file-change")
 
             for name in SEED_FILES:
                 self.assertFalse(

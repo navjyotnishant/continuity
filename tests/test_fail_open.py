@@ -120,13 +120,16 @@ class RestoreMode:
 class TestMissingStore(unittest.TestCase):
     """(a) `.continuity/` does not exist — "no history yet", not an error."""
 
-    def test_session_start_injects_nothing_and_creates_nothing(self):
+    def test_session_start_injects_nothing_and_seeds_the_store(self):
+        """CONTINUI-46: the store is created here, but nothing is injected."""
         with tempfile.TemporaryDirectory() as project:
             result = run_session_start(project)
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(injected_context(result), "")
-            self.assertFalse(os.path.exists(os.path.join(project, ".continuity")))
+            store = os.path.join(project, ".continuity")
+            self.assertTrue(os.path.isdir(store))
+            self.assertEqual(error_lines(store), [])
 
     def test_writer_with_a_staged_note_seeds_the_whole_store(self):
         """T029: a first-ever write lands in a populated, valid store."""

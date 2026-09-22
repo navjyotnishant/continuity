@@ -5,6 +5,11 @@ contracts/hook-io-contract.md -> SessionStart: read the stdin payload,
 resolve `.continuity/` from `cwd`, gate on schema compatibility, and emit the
 labeled context block as `hookSpecificOutput.additionalContext`.
 
+A project with no `.continuity/` yet has its store seeded here, so a freshly
+installed plugin has one from its very first session rather than from
+whenever a checkpoint first fires (CONTINUI-46). Seeding is best-effort: it
+never raises and never changes what this hook emits.
+
 Always prints valid JSON and always exits 0. A project with no
 `.continuity/`, an unsupported schema, or any internal failure emits the
 envelope with no `additionalContext` key at all — an absent key is how a
@@ -20,7 +25,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from lib.common import continuity_dir, continuity_log
-from lib.migrate import metadata_check_and_migrate
+from lib.migrate import metadata_check_and_migrate, metadata_ensure, seed_store
 from lib.select_context import select_context
 
 HOOK_EVENT_NAME = "SessionStart"
@@ -45,9 +50,18 @@ def read_payload():
 
 
 def build_context(cwd):
-    """Return the context block for a project root, or "" for nothing to inject."""
+    """Return the context block for a project root, or "" for nothing to inject.
+
+    A project with no `.continuity/` at all is a fresh install: seed the store
+    here (CONTINUI-46) instead of waiting for whichever checkpoint happens to
+    fire first. The seed is a handful of small template writes, cheap enough
+    to stay on this path, and it injects nothing — a store created this
+    instant has no prior session to report.
+    """
     continuity_dir_path = continuity_dir(cwd)
     if not os.path.isdir(continuity_dir_path):
+        metadata_ensure(continuity_dir_path)
+        seed_store(continuity_dir_path)
         return ""
     if not metadata_check_and_migrate(continuity_dir_path):
         return ""

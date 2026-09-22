@@ -38,8 +38,12 @@ research.md R7 as not yet validated against a live Claude Code runtime.
 ```
 
 **Behavior**:
-1. Resolve `.continuity/` under `cwd`. If absent, exit successfully with no
-   output (FR-007 — no history yet).
+1. Resolve `.continuity/` under `cwd`. If absent, seed the store from
+   `templates/*.tmpl` (CONTINUI-46 — a fresh install gets its store on the
+   first session rather than on the first checkpoint) and exit successfully
+   with no output (FR-007 — no history yet). Seeding is best-effort: a store
+   that cannot be created is logged and the session proceeds unchanged
+   (FR-012).
 2. Check `metadata.json` schema compatibility (see
    `file-format-contract.md`). If unsupported-newer, exit successfully with
    no output and log `unsupported-schema`.
