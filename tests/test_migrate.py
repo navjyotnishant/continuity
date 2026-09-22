@@ -223,8 +223,11 @@ class TestCheckAndMigrate(unittest.TestCase):
             finally:
                 os.chmod(continuity_dir, 0o755)
 
+            # No errors.log assertion here: .continuity/ itself is read-only, so
+            # continuity_log()'s own append into it silently no-ops too — the
+            # documented exception in data-model.md. Fail-open stays observable
+            # as the False return plus metadata.json left byte-for-byte intact.
             self.assertEqual(_read_bytes(path), before)
-            self.assertIn("write-failed", _errors_log(continuity_dir))
 
     def test_migration_success_leaves_no_temporary_files(self):
         with tempfile.TemporaryDirectory() as tmp:
