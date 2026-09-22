@@ -27,16 +27,16 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from lib.atomic_write import atomic_write
 from lib.common import continuity_dir, continuity_log
 from lib.lock import lock_acquire, lock_release
-from lib.migrate import metadata_check_and_migrate, metadata_ensure
+from lib.migrate import (
+    SEED_FILES,
+    metadata_check_and_migrate,
+    metadata_ensure,
+    seed_store,
+)
 from lib.secret_scan import secret_scan_line
 
 STAGED_DIRNAME = ".staged"
 SESSIONS_DIRNAME = "sessions"
-
-TEMPLATES_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "templates"
-)
-SEED_FILES = ("state.md", "decisions.md", "tasks.md", "learnings.md")
 
 # The Content Channel's four `<kind>` tags, and where each one lands.
 DURABLE_FILE = {
@@ -74,7 +74,9 @@ def write_memory(cwd, trigger_kind):
         # Unsupported newer schema: no write of any kind, already logged.
         return None
     metadata_ensure(continuity_dir_path)
-    _seed_store(continuity_dir_path)
+    # Only once there is something staged to write, so a trigger with nothing
+    # to persist still creates nothing at all (FR-011).
+    seed_store(continuity_dir_path)
 
     if not lock_acquire(continuity_dir_path):
         continuity_log(
@@ -145,39 +147,6 @@ def _consolidate(continuity_dir_path, staged, trigger_kind):
             )
 
     return handoff_path
-
-
-def _seed_store(continuity_dir_path):
-    """Fill in any durable file this store does not have yet (T029).
-
-    Runs only once there is something staged to write, so a trigger with
-    nothing to persist still creates nothing at all (FR-011) — this seeds a
-    store that is about to be written to, it does not conjure one for every
-    project a hook happens to fire in.
-
-    Never raises and never overwrites: a file that already exists is left
-    exactly as it is, including one the user edited by hand.
-    """
-    timestamp = _now()
-    for name in SEED_FILES:
-        target = os.path.join(continuity_dir_path, name)
-        if os.path.exists(target):
-            continue
-        try:
-            with open(
-                os.path.join(TEMPLATES_DIR, name + ".tmpl"), encoding="utf-8"
-            ) as handle:
-                template = handle.read()
-            # state.md is the one seed that is invalid without a value: its
-            # reader drops the whole file when `updated_at` is unparseable.
-            atomic_write(target, template.replace("{updated_at}", timestamp))
-        except OSError as error:
-            continuity_log(
-                continuity_dir_path,
-                "seed-" + name[: -len(".md")],
-                "write-failed",
-                type(error).__name__,
-            )
 
 
 # --- staged notes (the Content Channel) -----------------------------------

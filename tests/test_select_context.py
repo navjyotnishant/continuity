@@ -244,7 +244,9 @@ class TestSessionStartHook(unittest.TestCase):
             self.assertEqual(
                 payload, {"hookSpecificOutput": {"hookEventName": "SessionStart"}}
             )
-            self.assertFalse(os.path.exists(os.path.join(tmp, ".continuity")))
+            # The store is seeded here (CONTINUI-46), but a store created this
+            # instant has no prior session to report, so nothing is injected.
+            self.assertTrue(os.path.isdir(os.path.join(tmp, ".continuity")))
 
     def test_unsupported_newer_schema_injects_nothing_and_writes_nothing(self):
         with tempfile.TemporaryDirectory() as tmp:

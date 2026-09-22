@@ -31,6 +31,7 @@ from unittest.mock import patch
 REPO_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 sys.path.insert(0, REPO_ROOT)
 
+import lib.migrate as migrate_module
 import lib.write_memory as write_memory_module
 from lib.lock import lock_acquire as real_lock_acquire, lock_path
 from lib.select_context import _entries, _read_state, select_context
@@ -79,19 +80,20 @@ class TestSeedingLogsPerFileFailure(unittest.TestCase):
             store = os.path.join(tmp, ".continuity")
             stage(tmp, "task", "Do the thing\n")
 
-            # _seed_store only attempts to write a target that does not yet
+            # seed_store only attempts to write a target that does not yet
             # exist, so the way to make one file's seed fail in isolation is
             # to fail its write call directly rather than pre-occupy the
             # path -- a pre-existing file/dir would just be skipped as
-            # "already there" before any write is attempted.
-            real_atomic_write = write_memory_module.atomic_write
+            # "already there" before any write is attempted. The seam is in
+            # lib/migrate.py, where seed_store lives.
+            real_atomic_write = migrate_module.atomic_write
 
             def fail_decisions_only(target, content):
                 if os.path.basename(target) == "decisions.md":
                     raise OSError("simulated failure seeding decisions.md")
                 return real_atomic_write(target, content)
 
-            with patch.object(write_memory_module, "atomic_write", fail_decisions_only):
+            with patch.object(migrate_module, "atomic_write", fail_decisions_only):
                 write_memory(tmp, "file-change")
 
             self.assertFalse(os.path.exists(os.path.join(store, "decisions.md")))
@@ -147,18 +149,18 @@ class TestFailureOperationNamingIsConsistent(unittest.TestCase):
             store = os.path.join(tmp, ".continuity")
 
             # seed-X: force the decisions.md seed write to fail. A pre-existing
-            # path would just be skipped as "already there" (_seed_store only
+            # path would just be skipped as "already there" (seed_store only
             # writes a target that is absent), so the write call itself has
             # to fail instead.
             stage(tmp, "task", "Do the thing\n")
-            real_atomic_write = write_memory_module.atomic_write
+            real_atomic_write = migrate_module.atomic_write
 
             def fail_decisions_only(target, content):
                 if os.path.basename(target) == "decisions.md":
                     raise OSError("simulated failure seeding decisions.md")
                 return real_atomic_write(target, content)
 
-            with patch.object(write_memory_module, "atomic_write", fail_decisions_only):
+            with patch.object(migrate_module, "atomic_write", fail_decisions_only):
                 write_memory(tmp, "file-change")
 
             # write-X: learnings.md is a directory, so _append_entries's own
