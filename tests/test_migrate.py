@@ -9,12 +9,14 @@ in `errors.log`.
 
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
 from unittest import mock
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+REPO_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+sys.path.insert(0, REPO_ROOT)
 
 from lib import migrate
 from lib.migrate import (
@@ -228,6 +230,132 @@ class TestCheckAndMigrate(unittest.TestCase):
             # documented exception in data-model.md. Fail-open stays observable
             # as the False return plus metadata.json left byte-for-byte intact.
             self.assertEqual(_read_bytes(path), before)
+
+            # The finally block's chmod ran despite the operation above having
+            # failed; confirm the directory is actually writable again rather
+            # than trusting that os.chmod raised nothing.
+            probe_path = os.path.join(continuity_dir, "write_probe")
+            with open(probe_path, "w", encoding="utf-8") as handle:
+                handle.write("probe")
+            self.assertTrue(os.path.isfile(probe_path))
+
+    @unittest.skipIf(os.geteuid() == 0, "root bypasses directory permission checks")
+    def test_write_denied_metadata_json_stays_readable_and_parseable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            continuity_dir = os.path.join(tmp, ".continuity")
+            path = _write_metadata(continuity_dir, PRIOR_SCHEMA_VERSION)
+            before = _read_json(path)
+            os.chmod(continuity_dir, 0o555)
+            try:
+                self.assertFalse(metadata_check_and_migrate(continuity_dir))
+
+                # A read-only directory still permits reading its existing
+                # files; metadata.json must still open and parse as the
+                # untouched, prior-version document.
+                after = _read_json(path)
+            finally:
+                os.chmod(continuity_dir, 0o755)
+
+            self.assertEqual(after, before)
+            self.assertEqual(after["schema_version"], PRIOR_SCHEMA_VERSION)
+
+    @unittest.skipIf(os.geteuid() == 0, "root bypasses directory permission checks")
+    def test_write_denied_fail_open_contract_observable_without_errors_log(self):
+        # Covers the fail-open contract from a write-denied .continuity/ dir
+        # without relying on errors.log, which continuity_log() cannot write
+        # into for the same reason migration itself cannot: the directory is
+        # read-only. False return + byte-for-byte unchanged file are the
+        # only observable guarantees here.
+        with tempfile.TemporaryDirectory() as tmp:
+            continuity_dir = os.path.join(tmp, ".continuity")
+            path = _write_metadata(continuity_dir, PRIOR_SCHEMA_VERSION)
+            before = _read_bytes(path)
+            os.chmod(continuity_dir, 0o555)
+            try:
+                result = metadata_check_and_migrate(continuity_dir)
+            finally:
+                os.chmod(continuity_dir, 0o755)
+
+            self.assertIs(result, False)
+            self.assertEqual(_read_bytes(path), before)
+
+    def test_write_denied_comment_matches_continuity_log_contract(self):
+        # The comment above explains why no errors.log assertion is made:
+        # continuity_log()'s own append silently no-ops when it can't write.
+        # Verify that claim directly against the documented contract instead
+        # of trusting the prose: continuity_log() must not raise, and must
+        # leave errors.log absent, when continuity_dir_path is unwritable.
+        with tempfile.TemporaryDirectory() as tmp:
+            continuity_dir = os.path.join(tmp, ".continuity")
+            os.makedirs(continuity_dir)
+            os.chmod(continuity_dir, 0o555)
+            try:
+                try:
+                    migrate.continuity_log(
+                        continuity_dir, "migrate", "write-failed", "detail"
+                    )
+                except Exception as exc:  # noqa: BLE001 -- must fail open
+                    self.fail(
+                        "continuity_log() raised {!r} instead of silently "
+                        "no-opping".format(exc)
+                    )
+            finally:
+                os.chmod(continuity_dir, 0o755)
+
+            self.assertFalse(os.path.isfile(os.path.join(continuity_dir, "errors.log")))
+
+    @unittest.skipIf(os.geteuid() == 0, "root bypasses directory permission checks")
+    def test_write_denied_during_migration_raises_no_exception(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            continuity_dir = os.path.join(tmp, ".continuity")
+            _write_metadata(continuity_dir, PRIOR_SCHEMA_VERSION)
+            os.chmod(continuity_dir, 0o555)
+            try:
+                metadata_check_and_migrate(continuity_dir)
+            except Exception as exc:  # noqa: BLE001 -- fail-open means never raise
+                self.fail("metadata_check_and_migrate() raised {!r}".format(exc))
+            finally:
+                os.chmod(continuity_dir, 0o755)
+
+    def test_write_denied_returns_false(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            continuity_dir = os.path.join(tmp, ".continuity")
+            _write_metadata(continuity_dir, PRIOR_SCHEMA_VERSION)
+            os.chmod(continuity_dir, 0o555)
+            try:
+                self.assertFalse(metadata_check_and_migrate(continuity_dir))
+            finally:
+                os.chmod(continuity_dir, 0o755)
+
+    def test_write_denied_leaves_metadata_byte_for_byte_unchanged(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            continuity_dir = os.path.join(tmp, ".continuity")
+            path = _write_metadata(continuity_dir, PRIOR_SCHEMA_VERSION)
+            before = _read_bytes(path)
+            os.chmod(continuity_dir, 0o555)
+            try:
+                metadata_check_and_migrate(continuity_dir)
+            finally:
+                os.chmod(continuity_dir, 0o755)
+
+            self.assertEqual(_read_bytes(path), before)
+
+    def test_unreadable_metadata_still_logs_when_continuity_dir_stays_writable(self):
+        # Contrast case for the write-denied tests above: here only
+        # metadata.json itself is made unreadable, .continuity/ is never
+        # chmodded, so continuity_log() can still append and errors.log's
+        # content assertion is legitimate rather than incidental.
+        with tempfile.TemporaryDirectory() as tmp:
+            continuity_dir = os.path.join(tmp, ".continuity")
+            path = _write_metadata(continuity_dir, CURRENT_SCHEMA_VERSION)
+            os.chmod(path, 0o000)
+            try:
+                self.assertFalse(metadata_check_and_migrate(continuity_dir))
+            finally:
+                os.chmod(path, 0o644)
+
+            self.assertTrue(os.access(continuity_dir, os.W_OK))
+            self.assertIn("corrupted", _errors_log(continuity_dir))
 
     def test_migration_success_leaves_no_temporary_files(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -640,6 +768,31 @@ class TestNewMetadataFieldsFromTemplate(unittest.TestCase):
 
             # No fields beyond the template's own plus nothing invented.
             self.assertEqual(set(metadata.keys()), set(template_content.keys()))
+
+
+class TestModuleExitsClean(unittest.TestCase):
+    # Guard against the subprocess below re-running this very test: without
+    # it, the child's `-m unittest tests.test_migrate` invocation would hit
+    # this same test, spawning a grandchild, recursing until each level
+    # times out.
+    @unittest.skipIf(
+        os.environ.get("_CONTINUITY_SKIP_MODULE_EXIT_TEST") == "1",
+        "nested invocation from the subprocess under test",
+    )
+    def test_module_run_via_unittest_exits_0(self):
+        env = dict(os.environ, _CONTINUITY_SKIP_MODULE_EXIT_TEST="1")
+        result = subprocess.run(
+            [sys.executable, "-m", "unittest", "tests.test_migrate"],
+            cwd=REPO_ROOT,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=120,
+        )
+        self.assertEqual(
+            result.returncode, 0, msg=result.stdout + result.stderr
+        )
 
 
 if __name__ == "__main__":
