@@ -24,8 +24,9 @@ trap 'rm -f "$tmp_invalid" "$tmp_bad_name"' EXIT
 printf '{ "name": "continuity", ' > "$tmp_invalid"
 is_valid_json "$tmp_invalid" && fail "malformed JSON was accepted as valid"
 
-# All required fields (name, version, description, hooks) are present
-for field in name version description hooks; do
+# All required fields (name, version, description) are present; hooks/hooks.json
+# is auto-loaded, so the manifest carries no hooks entry (CONTINUI-48)
+for field in name version description; do
   [ -n "$(get "$manifest" "$field")" ] || fail "required field '$field' is missing or empty"
 done
 

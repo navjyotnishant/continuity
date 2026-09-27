@@ -20,12 +20,11 @@ get() { python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get(sys.
 [[ "$(get version)" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "version must be semver"
 [ -n "$(get description)" ] || fail "description must be non-empty"
 
-hooks="$(get hooks)"
-[ "$hooks" = "./hooks/hooks.json" ] || fail "hooks entrypoint must be ./hooks/hooks.json"
+# Claude Code auto-loads hooks/hooks.json; naming it in the manifest registers it
+# twice and the plugin then fails to load (CONTINUI-48).
+[ "$(get hooks)" = "./hooks/hooks.json" ] && fail "manifest must not name the auto-loaded ./hooks/hooks.json"
 
-# The manifest names the hook scripts through its entrypoint, so the two are only
-# consistent once hooks.json exists (T023). Until then there is nothing to check.
-hooks_json="$root/${hooks#./}"
+hooks_json="$root/hooks/hooks.json"
 if [ -f "$hooks_json" ]; then
   python3 -m json.tool "$hooks_json" >/dev/null 2>&1 || fail "hooks.json is not valid JSON"
 

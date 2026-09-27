@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The plugin no longer reports "failed to load". Its manifest named
+  `hooks/hooks.json`, which Claude Code already loads automatically, so the
+  hooks were registered twice. (CONTINUI-48)
+
 ## [0.1.1] - 2026-09-27
 
 ### Fixed

@@ -65,3 +65,22 @@ class TestHookCommandsArePortable(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestManifestDoesNotReRegisterStandardHooks(unittest.TestCase):
+    """CONTINUI-48: Claude Code auto-loads hooks/hooks.json. A manifest
+    `hooks` entry naming that same file registers it twice, and the real
+    loader then reports the plugin as "failed to load" (`claude plugin
+    validate` does not catch it)."""
+
+    def test_manifest_hooks_does_not_name_the_standard_hooks_file(self):
+        manifest_path = os.path.join(REPO_ROOT, ".claude-plugin", "plugin.json")
+        with open(manifest_path, "r", encoding="utf-8") as handle:
+            manifest = json.load(handle)
+        entries = manifest.get("hooks", [])
+        if isinstance(entries, str):
+            entries = [entries]
+        standard = os.path.normpath(HOOKS_JSON_PATH)
+        for entry in entries:
+            if isinstance(entry, str):
+                self.assertNotEqual(os.path.normpath(os.path.join(REPO_ROOT, entry)), standard)

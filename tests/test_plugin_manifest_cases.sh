@@ -38,13 +38,8 @@ empty_desc="$(tmp_manifest "0.1.0" "" "./hooks/hooks.json")"
 [ -n "$(get "$empty_desc" description)" ] && fail "empty description should not pass non-empty check"
 rm -f "$empty_desc"
 
-# hooks field equals "./hooks/hooks.json"
-[ "$(get "$manifest" hooks)" = "./hooks/hooks.json" ] || fail "hooks entrypoint must be ./hooks/hooks.json"
-
-# hooks field with different path is rejected
-bad_hooks="$(tmp_manifest "0.1.0" "x" "./config/hooks.json")"
-[ "$(get "$bad_hooks" hooks)" = "./hooks/hooks.json" ] && fail "wrong hooks path should not pass equality check"
-rm -f "$bad_hooks"
+# The real manifest must not name the auto-loaded hooks/hooks.json (CONTINUI-48)
+[ "$(get "$manifest" hooks)" = "./hooks/hooks.json" ] && fail "manifest must not name the auto-loaded ./hooks/hooks.json"
 
 # --- Hook script registration (T016, T019) ---
 # hooks/hooks.json doesn't exist yet on this branch, so these cases exercise the
