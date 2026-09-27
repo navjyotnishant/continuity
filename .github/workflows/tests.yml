@@ -1,0 +1,27 @@
+# Runs the stdlib unittest suite. Orion reads the "test" job's result to
+# decide whether a branch or batch is safe to merge; without a workflow the
+# batch path never gets a verdict and re-assembles every 30 minutes.
+name: tests
+
+on:
+  pull_request:
+    branches-ignore: [main]
+  push:
+    branches: [main, develop]
+
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # The oldest supported version (README: Python 3.9+ stdlib only).
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+      - name: run the suite
+        run: python tests/run_tests.py
