@@ -9,15 +9,13 @@ and over. Continuity fixes that by persisting a project's important context
 to plain text files, and loading a small, relevant slice of it back in at the
 start of the next session. Full rationale: [`docs/intent/continuity.md`](docs/intent/continuity.md).
 
-**Status**: repository skeleton laid out, implementation in progress. This
-repository holds the intent doc, the full feature specification, and the
-implementation plan (see [`specs/001-continuity/`](specs/001-continuity/)).
-`lib/common.py` (path resolution, fail-open logging, metadata defaults) and
-the `tests/run_tests.py` harness exist and pass; the rest of the plugin's
-scripts (`hooks/`, `commands/`, the remaining `lib/` modules, `templates/`,
-`.claude-plugin/`) are scaffolded as empty directories awaiting the
-implementation phases in
-[`specs/001-continuity/tasks.md`](specs/001-continuity/tasks.md).
+**Status**: working plugin, version 0.1.2. The hooks, the
+`/continuity-checkpoint` command, the store logic in `lib/` and the seed
+templates are all implemented, every task in
+[`specs/001-continuity/tasks.md`](specs/001-continuity/tasks.md) is done,
+and the suite (`python3 tests/run_tests.py`, plus the shell suite) runs in
+CI on every pull request. Design and requirements live in
+[`specs/001-continuity/`](specs/001-continuity/).
 
 ## Why a plugin, not a service
 
@@ -32,64 +30,80 @@ run Claude Code hooks in this environment. See
 Context for the full constraint set and why each alternative (an embedded
 database, `flock`, `pytest`) was rejected.
 
-## How it works (design)
+## How it works
 
-- **Storage**: project-scoped Markdown/text files under `.continuity/` at the
-  project root (`state.md`, `decisions.md`, `tasks.md`, `learnings.md`, plus
-  `metadata.json` and a `sessions/` handoff log) — no database engine.
-- **Session start**: a `SessionStart` hook loads a bounded (~100–200 line
-  soft target), provenance-labeled subset of that store as injected context,
-  clearly marked as trusted project context, not as instructions to act on.
-- **Memory writes**: triggered by meaningful-change signals (a significant
-  file change, a meaningful git diff, a completed task, a recorded decision,
-  a test milestone, an explicit checkpoint, or `SessionEnd`) — never on every
-  interaction, and never via an LLM call. Writes run as detached,
-  fire-and-forget background processes so the triggering hook returns
-  immediately.
-- **Failure handling**: every read or write fails open — on any error
-  (missing directory, corrupted file, write failure) the operation is
-  skipped and logged locally to `.continuity/errors.log`, and Claude Code
-  continues exactly as if Continuity were not installed.
+- **Storage**: project-scoped Markdown files under `.continuity/` at the
+  project root (`state.md`, `decisions.md`, `tasks.md`, `learnings.md`),
+  plus `metadata.json` and a `sessions/` handoff log. No database engine.
+- **Session start** (`hooks/session-start.py`): loads a bounded,
+  provenance-labeled subset of the store as injected context, marked as
+  recorded by a prior session rather than a live instruction. Selection is
+  plain per-section line budgets, with `active` and `blocked` tasks
+  preferred over `done` ones.
+- **Staging notes**: the session is told where to drop notes worth keeping,
+  as `.continuity/.staged/<kind>-<timestamp>-<pid>.md`, where `<kind>` is
+  `decision`, `task`, `learning` or `handoff`. Continuity never composes
+  content itself and never calls an LLM; it consolidates what was staged.
+- **Writes** (`hooks/capture-trigger.py`, `hooks/session-end.py`): a
+  meaningful change (an edit, a git diff or commit) or `SessionEnd` launches
+  `lib/write_memory.py` as a detached background process, so the triggering
+  hook returns immediately. The writer secret-scans every line, appends each
+  note to its durable file, writes one handoff to `sessions/`, and prunes
+  what is past its retention window. Notes land in the repository of the
+  file that was edited, not the session's working directory.
+- **On demand**: `/continuity-checkpoint` stages and consolidates right now,
+  synchronously, instead of waiting for the next trigger.
+- **Concurrency**: an `os.mkdir()` store lock, broken if a crashed writer
+  leaves it stale, and atomic temp-file-and-rename writes.
+- **Failure handling**: every read or write fails open. On any error
+  (missing directory, corrupted file, a store schema it does not
+  understand) the operation is skipped and logged to
+  `.continuity/errors.log`, and Claude Code carries on as if Continuity were
+  not installed.
 
-The full requirement set (FR-001–FR-020), the ten resolved open questions,
-and the flagged design tensions are in
-[`specs/001-continuity/spec.md`](specs/001-continuity/spec.md).
+The full requirement set (FR-001 to FR-020) and the resolved open questions
+are in [`specs/001-continuity/spec.md`](specs/001-continuity/spec.md).
+
+## Install
+
+Inside Claude Code:
+
+```text
+/plugin marketplace add navjyotnishant/continuity
+/plugin install continuity@continuity
+```
+
+Needs `python3` (3.9 or newer) on `PATH`, which Claude Code hooks already
+rely on. In a project that has no store yet, Continuity creates
+`.continuity/` from `templates/`.
+
+`.continuity/` is git-tracked by default, so a teammate's session inherits
+the same context. [`docs/install.md`](docs/install.md) covers opting it out
+of version control, what the secret scan does and does not catch, and the
+`retention_days` and `git_tracked` settings in `metadata.json`.
 
 ## Repository layout
 
 ```
-.claude-plugin/   Plugin manifest + marketplace listing (not yet populated)
-hooks/            SessionStart / PostToolUse / SessionEnd hook scripts
-commands/         Slash commands (e.g. /continuity-checkpoint)
-lib/              Shared logic: locking, atomic writes, secret scan,
-                  context selection, schema migration, retention
+.claude-plugin/   Plugin manifest and marketplace listing
+hooks/            SessionStart / PostToolUse / SessionEnd hooks + hooks.json
+commands/         /continuity-checkpoint
+lib/              Store logic: selection, writer, locking, atomic writes,
+                  secret scan, schema migration, retention (the .sh files
+                  are shell twins exercised by the shell test suite)
 templates/        Seed content for a first-ever .continuity/ store
-tests/            Stdlib `unittest` tests, run via tests/run_tests.py — no
-                  third-party test framework dependency
+tests/            Stdlib unittest suite (tests/run_tests.py) and shell
+                  suite (tests/run_tests.sh)
 scripts/hooks/    This repo's own git hooks (secret-scan pre-commit)
-docs/             Intent doc and install/usage docs
-specs/            Feature spec, implementation plan, and tasks (spec-kit)
+docs/             Intent doc and install notes
+specs/            Feature spec, implementation plan and tasks (spec-kit)
 ```
-
-`hooks/`, `commands/`, `templates/`, and `.claude-plugin/` are currently
-empty directories (tracked via `.gitkeep`); `lib/` holds `common.py` with
-the rest of its modules still to come — see
-[`specs/001-continuity/tasks.md`](specs/001-continuity/tasks.md) for the
-task-by-task build order.
-
-## Installing (once implemented)
-
-Continuity will install like any other Claude Code plugin, from this repo's
-marketplace listing (`.claude-plugin/marketplace.json`). Install
-instructions will live in `docs/install.md` once the plugin manifest exists,
-including the documented `.gitignore` opt-out for teams that want
-`.continuity/` to stay local-only rather than git-tracked (`.continuity/` is
-git-tracked by default — see spec.md Q1/FR-020).
 
 ## Development
 
 ```bash
 python3 tests/run_tests.py
+bash tests/run_tests.sh
 ```
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the branching model, style
