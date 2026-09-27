@@ -19,7 +19,7 @@ treat any other tracked file with that risk, and opt out per below.
 
 ## Secret scanning is a mitigation, not a guarantee
 
-Continuity runs `lib/secret_scan.py` over content before it writes it, to
+Continuity runs `plugins/continuity/lib/secret_scan.py` over content before it writes it, to
 catch common credential patterns (API keys, tokens, etc.). This reduces
 risk but **does not eliminate it**: a scan can always have a false negative
 — a secret in a shape the patterns don't recognize ships into git history
@@ -64,7 +64,7 @@ git tracks it changes (FR-020).
 ## Configuring retention and tracking in `metadata.json`
 
 `.continuity/metadata.json` holds two fields you can hand-edit at any
-time; `lib/write_memory.py` and `lib/retention.py` re-read this file on every run,
+time; `plugins/continuity/lib/write_memory.py` and `plugins/continuity/lib/retention.py` re-read this file on every run,
 so an edit takes effect immediately, without restarting a session:
 
 - `retention_days` (default `60`) — how long session-history files under

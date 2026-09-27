@@ -17,7 +17,8 @@ assert_contains() {
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-INSTALL_DOC="$REPO_ROOT/docs/install.md"
+PROJECT_ROOT="$(cd "$REPO_ROOT/../.." && pwd)"
+INSTALL_DOC="$PROJECT_ROOT/docs/install.md"
 
 if [[ ! -f "$INSTALL_DOC" ]]; then
   echo "FAIL: docs/install.md does not exist"

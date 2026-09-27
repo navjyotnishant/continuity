@@ -9,7 +9,8 @@
 set -uo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-manifest="${1:-$repo_root/.claude-plugin/marketplace.json}"
+project_root="$(cd "$repo_root/../.." && pwd)"
+manifest="${1:-$project_root/.claude-plugin/marketplace.json}"
 
 if [ ! -r "$manifest" ]; then
   printf 'FAIL: cannot read %s\n' "$manifest" >&2
@@ -51,8 +52,8 @@ entry = next((p for p in plugins if isinstance(p, dict) and p.get("name") == "co
 if entry is None:
     errors.append("no plugins entry named 'continuity'")
 else:
-    if entry.get("source") not in ("./", "."):
-        errors.append(f"continuity source must be this repo root, got {entry.get('source')!r}")
+    if entry.get("source") != "./plugins/continuity":
+        errors.append(f"continuity source must be ./plugins/continuity, got {entry.get('source')!r}")
     if not entry.get("description"):
         errors.append("continuity entry needs a description")
 

@@ -14,7 +14,8 @@
 set -uo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-manifest="${1:-$repo_root/.claude-plugin/marketplace.json}"
+project_root="$(cd "$repo_root/../.." && pwd)"
+manifest="${1:-$project_root/.claude-plugin/marketplace.json}"
 fail=0
 
 if ! command -v python3 >/dev/null 2>&1; then

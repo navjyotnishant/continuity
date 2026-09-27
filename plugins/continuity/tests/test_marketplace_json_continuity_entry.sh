@@ -10,7 +10,8 @@
 set -uo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-manifest="${1:-$repo_root/.claude-plugin/marketplace.json}"
+project_root="$(cd "$repo_root/../.." && pwd)"
+manifest="${1:-$project_root/.claude-plugin/marketplace.json}"
 
 if [ ! -r "$manifest" ]; then
   printf 'FAIL: cannot read %s\n' "$manifest" >&2
@@ -60,10 +61,10 @@ if entry is not None:
         if field not in entry:
             errors.append(f"case 14: continuity entry missing required field {field!r}")
 
-    # Case 15: source is "./" (repo root, not elsewhere)
+    # Case 15: source is "./plugins/continuity" (the plugin subfolder, not elsewhere)
     source = entry.get("source")
-    if source != "./":
-        errors.append(f"case 15: continuity entry source must be './', got {source!r}")
+    if source != "./plugins/continuity":
+        errors.append(f"case 15: continuity entry source must be './plugins/continuity', got {source!r}")
 
     # Case 16: description is non-empty and meaningful (more than a token or two)
     description = entry.get("description")

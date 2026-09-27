@@ -11,7 +11,8 @@
 set -uo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-manifest="${1:-$repo_root/.claude-plugin/marketplace.json}"
+project_root="$(cd "$repo_root/../.." && pwd)"
+manifest="${1:-$project_root/.claude-plugin/marketplace.json}"
 fail=0
 
 # Case 1: file exists at the correct path

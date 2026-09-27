@@ -15,16 +15,21 @@ of a project's prior sessions via plain Markdown/text files under
 ## Layout
 
 ```
-.claude-plugin/   Plugin manifest + marketplace listing
-hooks/            SessionStart / PostToolUse / SessionEnd hook scripts
-commands/         Slash commands (e.g. /continuity-checkpoint)
-lib/              Shared logic: locking, atomic writes, secret scan, context
-                  selection, migration, retention
-templates/        Seed content for a first-ever .continuity/ store
-tests/            Stdlib `unittest` tests, run via tests/run_tests.py (no
-                  third-party test framework)
+.claude-plugin/marketplace.json   Marketplace listing; source points at
+                                   plugins/continuity
 docs/             Intent doc + install/usage docs
 specs/            Feature spec, plan, tasks (spec-kit workflow)
+plugins/continuity/   The plugin root — Codex ignores a marketplace plugin
+                       whose source is the repo root, so the plugin lives in
+                       a real subfolder (CONTINUI-59):
+  .claude-plugin/plugin.json   Plugin manifest
+  hooks/            SessionStart / PostToolUse / SessionEnd hook scripts
+  commands/         Slash commands (e.g. /continuity-checkpoint)
+  lib/              Shared logic: locking, atomic writes, secret scan,
+                    context selection, migration, retention
+  templates/        Seed content for a first-ever .continuity/ store
+  tests/            Stdlib `unittest` tests, run via tests/run_tests.py (no
+                    third-party test framework)
 ```
 
 `hooks/` and `commands/` are the plugin's event surface; everything reusable
@@ -35,6 +40,7 @@ lives in `lib/` so each hook script stays a thin, fast dispatcher.
 No build step (interpreted Python, nothing to compile).
 
 ```bash
+cd plugins/continuity
 python3 tests/run_tests.py   # unittest suite
 bash tests/run_tests.sh      # shell tests (manifest, docs, opt-out); CI runs both
 ```

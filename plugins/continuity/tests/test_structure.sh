@@ -2,13 +2,15 @@
 # Author: Navjyot Nishant
 # Created: 2026-09-12
 # Last updated: 2026-09-27
-# Description: Asserts the plugin directory tree from plan.md exists at the repo root.
+# Description: Asserts the plugin directory tree from plan.md exists at the
+#              plugin root (plugins/continuity/), and docs/ at the project root.
 set -u
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+project_root="$(cd "$repo_root/../.." && pwd)"
 failures=0
 
-for dir in .claude-plugin hooks commands lib templates tests docs; do
+for dir in .claude-plugin hooks commands lib templates tests; do
   if [ -d "$repo_root/$dir" ]; then
     echo "ok   - $dir/ exists"
   else
@@ -17,7 +19,7 @@ for dir in .claude-plugin hooks commands lib templates tests docs; do
   fi
 done
 
-for dir in .claude-plugin hooks commands lib templates tests docs; do
+for dir in .claude-plugin hooks commands lib templates tests; do
   if [ -r "$repo_root/$dir" ] && [ -w "$repo_root/$dir" ]; then
     echo "ok   - $dir/ is readable and writable"
   else
@@ -25,6 +27,13 @@ for dir in .claude-plugin hooks commands lib templates tests docs; do
     failures=$((failures + 1))
   fi
 done
+
+if [ -d "$project_root/docs" ] && [ -r "$project_root/docs" ] && [ -w "$project_root/docs" ]; then
+  echo "ok   - docs/ exists at the project root"
+else
+  echo "FAIL - docs/ is missing or not readable/writable at the project root"
+  failures=$((failures + 1))
+fi
 
 
 if [ -x "$repo_root/tests/test_structure.sh" ]; then

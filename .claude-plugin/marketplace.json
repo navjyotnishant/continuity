@@ -10,7 +10,7 @@
     {
       "name": "continuity",
       "description": "Cross-session memory for Claude Code: project-scoped context persisted under .continuity/, loaded at SessionStart, written asynchronously, fails open.",
-      "source": "./",
+      "source": "./plugins/continuity",
       "category": "productivity"
     }
   ]

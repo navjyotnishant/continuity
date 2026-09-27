@@ -18,7 +18,8 @@
 
 TESTS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd "$TESTS_DIR/.." && pwd)
-export TESTS_DIR REPO_ROOT
+PROJECT_ROOT=$(cd "$REPO_ROOT/../.." && pwd)
+export TESTS_DIR REPO_ROOT PROJECT_ROOT
 
 ASSERT_FAILURES=0
 

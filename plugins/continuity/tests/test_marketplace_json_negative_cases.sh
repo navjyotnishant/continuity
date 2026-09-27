@@ -13,7 +13,8 @@
 set -uo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-manifest="${1:-$repo_root/.claude-plugin/marketplace.json}"
+project_root="$(cd "$repo_root/../.." && pwd)"
+manifest="${1:-$project_root/.claude-plugin/marketplace.json}"
 fail=0
 
 if ! command -v python3 >/dev/null 2>&1; then
@@ -135,8 +136,8 @@ if "plugins" in m and not isinstance(m["plugins"], list):
 
 if isinstance(m.get("plugins"), list):
     entry = next((p for p in m["plugins"] if isinstance(p, dict) and p.get("name") == "continuity"), None)
-    if entry is not None and entry.get("source") not in ("./", "."):
-        errors.append(f"continuity source must be this repo root, got {entry.get('source')!r}")
+    if entry is not None and entry.get("source") != "./plugins/continuity":
+        errors.append(f"continuity source must be ./plugins/continuity, got {entry.get('source')!r}")
 
 for e in errors:
     print(f"FAIL: {e}", file=sys.stderr)
