@@ -4,13 +4,20 @@ contracts/hook-io-contract.md's PostToolUse rule: a whitespace-only edit and
 a non-"git" Bash call are legitimate no-ops (no trigger, no writer spawned,
 nothing logged); a real edit or a git-diff-bearing "git" Bash call is a
 signal that launches the detached writer.
+
+CONTINUI-47: the writer must target the edited file's own repository, not
+the session's `cwd` — a session's `cwd` and the file a tool call touches
+can be different repos entirely (this codebase's own multi-repo working
+directories are exactly that shape).
 """
 
 import importlib.util
 import io
 import json
 import os
+import shutil
 import sys
+import tempfile
 import unittest
 from unittest import mock
 
@@ -116,6 +123,69 @@ class TestMissingOrInvalidPayload(unittest.TestCase):
             with mock.patch.object(sys, "stdin", io.StringIO(json.dumps(payload))):
                 self.assertEqual(capture_trigger.main(), 0)
             launch.assert_not_called()
+
+
+class TestProjectRootForCrossRepoEdits(unittest.TestCase):
+    """CONTINUI-47: resolve from the edited file, not the session's cwd."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+
+    def _make_repo(self, name):
+        repo = os.path.join(self.tmp, name)
+        os.makedirs(os.path.join(repo, ".git"))
+        return repo
+
+    def test_edit_in_a_different_repo_than_cwd_resolves_to_the_edited_repo(self):
+        session_repo = self._make_repo("session-repo")
+        other_repo = self._make_repo("other-repo")
+        edited_file = os.path.join(other_repo, "src", "thing.py")
+        os.makedirs(os.path.dirname(edited_file))
+
+        payload = {"cwd": session_repo, "tool_input": {"file_path": edited_file}}
+        self.assertEqual(capture_trigger.project_root_for(payload), other_repo)
+
+    def test_edit_in_a_nested_subdirectory_still_finds_the_repo_root(self):
+        repo = self._make_repo("repo")
+        edited_file = os.path.join(repo, "a", "b", "c", "thing.py")
+        os.makedirs(os.path.dirname(edited_file))
+
+        payload = {"cwd": "/somewhere/else", "tool_input": {"file_path": edited_file}}
+        self.assertEqual(capture_trigger.project_root_for(payload), repo)
+
+    def test_no_file_path_falls_back_to_cwd(self):
+        payload = {"cwd": "/repo", "tool_input": {"command": "git status"}}
+        self.assertEqual(capture_trigger.project_root_for(payload), "/repo")
+
+    def test_relative_file_path_falls_back_to_cwd(self):
+        payload = {"cwd": "/repo", "tool_input": {"file_path": "thing.py"}}
+        self.assertEqual(capture_trigger.project_root_for(payload), "/repo")
+
+    def test_file_with_no_git_root_above_it_falls_back_to_cwd(self):
+        untracked_dir = tempfile.mkdtemp(dir=self.tmp)
+        edited_file = os.path.join(untracked_dir, "thing.py")
+
+        payload = {"cwd": "/repo", "tool_input": {"file_path": edited_file}}
+        self.assertEqual(capture_trigger.project_root_for(payload), "/repo")
+
+    def test_writer_is_launched_against_the_edited_files_repo_not_cwd(self):
+        session_repo = self._make_repo("session-repo")
+        other_repo = self._make_repo("other-repo")
+        edited_file = os.path.join(other_repo, "thing.py")
+
+        with mock.patch.object(capture_trigger, "launch_writer") as launch:
+            payload = {
+                "cwd": session_repo,
+                "tool_name": "Edit",
+                "tool_input": {
+                    "file_path": edited_file,
+                    "edits": [{"old_string": "foo", "new_string": "bar"}],
+                },
+            }
+            with mock.patch.object(sys, "stdin", io.StringIO(json.dumps(payload))):
+                self.assertEqual(capture_trigger.main(), 0)
+            launch.assert_called_once_with(other_repo, "file-change")
 
 
 if __name__ == "__main__":

@@ -10,6 +10,16 @@ A non-meaningful signal is a legitimate no-op: no output, no write, and
 nothing logged (FR-011). A whitespace-only edit is the spec's own documented
 example.
 
+CONTINUI-47: the target project is the edited file's own repository, not the
+session's `cwd`. A session can run with its `cwd` in one repo while a tool
+call edits a file that lives in another (this codebase's own working
+directories, for instance, span several repos at once) — resolving from
+`cwd` alone wrote every note into the session's repo regardless of which
+project the change actually belonged to. `Edit`/`Write`/`MultiEdit` carry the
+edited file's path in `tool_input.file_path`; the `Bash` git-diff trigger has
+no single edited file, so it still resolves from `cwd`, which is exactly the
+repo the git command itself ran against.
+
 Standard library only (Python 3.9+) — no third-party imports, ever.
 """
 
@@ -101,6 +111,28 @@ def _has_non_whitespace_diff(cwd):
     return False
 
 
+def project_root_for(payload):
+    """Return the target project root: the edited file's own repo, or `cwd`.
+
+    Walks up from `tool_input.file_path`'s directory to the nearest `.git`
+    (file or directory — a worktree's `.git` is a file). Falls back to
+    `cwd` when there is no file_path (the Bash trigger) or no `.git` is
+    found above it (an untracked file, or file_path missing/relative in a
+    payload shape this hook does not otherwise handle).
+    """
+    cwd = payload.get("cwd")
+    file_path = (payload.get("tool_input") or {}).get("file_path")
+    if not isinstance(file_path, str) or not file_path or not os.path.isabs(file_path):
+        return cwd
+
+    directory = os.path.dirname(file_path)
+    while directory and directory != os.path.dirname(directory):
+        if os.path.exists(os.path.join(directory, ".git")):
+            return directory
+        directory = os.path.dirname(directory)
+    return cwd
+
+
 def detach_kwargs():
     """Platform-specific arguments that orphan the writer (research.md R4)."""
     if os.name == "nt":
@@ -156,7 +188,8 @@ def main():
         trigger_kind = None
 
     if trigger_kind:
-        launch_writer(cwd, trigger_kind)
+        target = project_root_for(parsed)
+        launch_writer(target if isinstance(target, str) and target else cwd, trigger_kind)
     return 0
 
 

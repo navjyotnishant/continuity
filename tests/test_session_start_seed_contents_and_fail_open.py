@@ -4,7 +4,8 @@ Covers four claims about hooks/session-start.py's seeding path that the
 other CONTINUI-46 test files do not already pin down together:
 
   1. the session proceeds normally when store creation fails (FR-012)
-  2. no additionalContext is injected when store creation fails
+  2. no *history* is injected when store creation fails — the staging
+     instructions (CONTINUI-47) still are, since they are unconditional
   3. the files a successful seed writes have readable, well-formed content
   4. a successful seed creates exactly the four durable files plus
      metadata.json — nothing else
@@ -23,6 +24,7 @@ REPO_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 sys.path.insert(0, REPO_ROOT)
 
 import lib.migrate as migrate_module
+from lib import select_context
 from lib.migrate import CURRENT_SCHEMA_VERSION, SEED_FILES
 
 SESSION_START_HOOK = os.path.join(REPO_ROOT, "hooks", "session-start.py")
@@ -88,9 +90,11 @@ class TestSessionProceedsWhenStoreCreationFails(unittest.TestCase):
 
 
 class TestNoAdditionalContextWhenStoreCreationFails(unittest.TestCase):
-    """A store that failed to seed still has no prior session to report."""
+    """A store that failed to seed still has no prior session to report —
+    but still gets the staging instructions (CONTINUI-47), since those are
+    a fixed constant, independent of whether a store exists at all."""
 
-    def test_simulated_write_failure_injects_no_additional_context(self):
+    def test_simulated_write_failure_injects_only_staging_instructions(self):
         with tempfile.TemporaryDirectory() as tmp:
 
             def raise_disk_full(_target, _content):
@@ -107,12 +111,13 @@ class TestNoAdditionalContextWhenStoreCreationFails(unittest.TestCase):
                 )
 
             output = json.loads(result.stdout)
-            self.assertNotIn(
-                "additionalContext", output.get("hookSpecificOutput", {})
+            self.assertEqual(
+                output["hookSpecificOutput"]["additionalContext"],
+                select_context.STAGING_INSTRUCTIONS + "\n",
             )
 
     @unittest.skipUnless(PERMISSIONS_ENFORCED, "chmod is not enforced here")
-    def test_unwritable_project_root_injects_no_additional_context(self):
+    def test_unwritable_project_root_injects_only_staging_instructions(self):
         with tempfile.TemporaryDirectory() as tmp:
             project = os.path.join(tmp, "project")
             os.makedirs(project)
@@ -124,8 +129,9 @@ class TestNoAdditionalContextWhenStoreCreationFails(unittest.TestCase):
                 os.chmod(project, original)
 
             output = json.loads(result.stdout)
-            self.assertNotIn(
-                "additionalContext", output.get("hookSpecificOutput", {})
+            self.assertEqual(
+                output["hookSpecificOutput"]["additionalContext"],
+                select_context.STAGING_INSTRUCTIONS + "\n",
             )
 
 

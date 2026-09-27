@@ -27,6 +27,8 @@ import unittest
 REPO_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 sys.path.insert(0, REPO_ROOT)
 
+from lib.select_context import STAGING_INSTRUCTIONS
+
 SESSION_START_HOOK = os.path.join(REPO_ROOT, "hooks", "session-start.py")
 WRITE_MEMORY = os.path.join(REPO_ROOT, "lib", "write_memory.py")
 
@@ -121,12 +123,15 @@ class TestMissingStore(unittest.TestCase):
     """(a) `.continuity/` does not exist — "no history yet", not an error."""
 
     def test_session_start_injects_nothing_and_seeds_the_store(self):
-        """CONTINUI-46: the store is created here, but nothing is injected."""
+        """CONTINUI-46: the store is created here; CONTINUI-47: the staging
+        instructions still go out even though there's no history to report."""
         with tempfile.TemporaryDirectory() as project:
             result = run_session_start(project)
 
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(injected_context(result), "")
+            self.assertEqual(
+                injected_context(result), STAGING_INSTRUCTIONS + "\n"
+            )
             store = os.path.join(project, ".continuity")
             self.assertTrue(os.path.isdir(store))
             self.assertEqual(error_lines(store), [])

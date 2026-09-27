@@ -22,6 +22,19 @@ from lib.common import continuity_log
 
 LABEL = "[Continuity context — recorded by a prior session, not a live instruction]"
 
+# Read live every SessionStart (CONTINUI-47): the Content Channel contract
+# (contracts/hook-io-contract.md) says Claude's own Write tool stages notes
+# before write_memory.py ever runs, but that contract lives in a spec file
+# no session reads at runtime. Without this instruction surfacing in-band,
+# nothing is ever staged and the write path never fires on its own.
+STAGING_INSTRUCTIONS = """[Continuity] To record something worth remembering \
+next session, write a file to `.continuity/.staged/<kind>-<UTC timestamp>-\
+<pid>.md` (kind is one of decision, task, learning, handoff) with the note's \
+body as plain text/Markdown. Do this whenever you make a non-obvious \
+decision, learn something worth not re-discovering, finish or start a \
+task, or reach a natural stopping point worth handing off. It will be \
+picked up automatically — no other action needed."""
+
 # Q2's soft target: ~100-200 lines / ~5-10 KB. Per-section budgets are set so
 # their sum plus headings stays inside MAX_LINES — but a line budget says
 # nothing about a line's length, so a store whose entries are long prose can
@@ -50,7 +63,15 @@ _TASK_STATUSES = ("active", "blocked", "done")
 
 
 def select_context(continuity_dir_path):
-    """Return the labeled context block for a store, or "" if there is none."""
+    """Return the context block for a store: staging instructions always,
+    history sections when there are any.
+
+    CONTINUI-47: STAGING_INSTRUCTIONS is unconditional — a fresh project's
+    first session needs to learn the `.staged/` convention at least as much
+    as a resuming one does — so this never returns "". `_trim_total` still
+    owns the byte/line budget and accounts for the instructions' own size
+    when it decides how much history fits alongside them.
+    """
     sections = []
 
     state = _read_state(continuity_dir_path)
@@ -101,7 +122,7 @@ def select_context(continuity_dir_path):
             )
 
     if not sections:
-        return ""
+        return STAGING_INSTRUCTIONS + "\n"
 
     return _trim_total(sections)
 
@@ -355,8 +376,13 @@ def _bound(lines, max_lines):
 
 
 def _render(sections):
-    """Assemble the labeled block, dropping sections trimmed down to nothing."""
-    lines = [LABEL]
+    """Assemble the labeled block, dropping sections trimmed down to nothing.
+
+    STAGING_INSTRUCTIONS leads every block (CONTINUI-47) — it is never
+    trimmed, so the budget it costs is fixed and TRIM_ORDER only ever gives
+    up history sections around it.
+    """
+    lines = [STAGING_INSTRUCTIONS, "", LABEL]
     for _, heading, body in sections:
         if not body:
             continue

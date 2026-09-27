@@ -16,7 +16,13 @@ import unittest
 REPO_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 sys.path.insert(0, REPO_ROOT)
 
-from lib.select_context import LABEL, MAX_BYTES, MAX_LINES, select_context
+from lib.select_context import (
+    LABEL,
+    MAX_BYTES,
+    MAX_LINES,
+    STAGING_INSTRUCTIONS,
+    select_context,
+)
 
 SESSION_START_HOOK = os.path.join(REPO_ROOT, "hooks", "session-start.py")
 
@@ -104,7 +110,8 @@ class TestSelectContext(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             context = select_context(build_store(tmp))
 
-            self.assertTrue(context.startswith(LABEL))
+            self.assertTrue(context.startswith(STAGING_INSTRUCTIONS))
+            self.assertIn(LABEL, context)
             for heading in (
                 "## State (as of 2026-09-12T09:00:00Z)",
                 "## Constraints",
@@ -145,15 +152,18 @@ class TestSelectContext(unittest.TestCase):
                 context.index("Finished long ago"),
             )
 
-    def test_absent_store_is_empty_not_an_error(self):
+    def test_absent_store_still_carries_staging_instructions_not_an_error(self):
         with tempfile.TemporaryDirectory() as tmp:
-            self.assertEqual(select_context(os.path.join(tmp, ".continuity")), "")
+            self.assertEqual(
+                select_context(os.path.join(tmp, ".continuity")),
+                STAGING_INSTRUCTIONS + "\n",
+            )
 
-    def test_empty_store_is_empty_not_an_error(self):
+    def test_empty_store_still_carries_staging_instructions_not_an_error(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = os.path.join(tmp, ".continuity")
             os.makedirs(store)
-            self.assertEqual(select_context(store), "")
+            self.assertEqual(select_context(store), STAGING_INSTRUCTIONS + "\n")
 
     def test_malformed_entry_is_skipped_without_hiding_its_siblings(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -235,20 +245,27 @@ class TestSessionStartHook(unittest.TestCase):
             )
             self.assertIn(LABEL, payload["hookSpecificOutput"]["additionalContext"])
 
-    def test_omits_additional_context_when_there_is_no_store(self):
+    def test_omits_history_but_still_teaches_staging_when_there_is_no_store(self):
         with tempfile.TemporaryDirectory() as tmp:
             result = self.run_hook(tmp)
 
             self.assertEqual(result.returncode, 0, result.stderr)
             payload = json.loads(result.stdout)
             self.assertEqual(
-                payload, {"hookSpecificOutput": {"hookEventName": "SessionStart"}}
+                payload,
+                {
+                    "hookSpecificOutput": {
+                        "hookEventName": "SessionStart",
+                        "additionalContext": STAGING_INSTRUCTIONS + "\n",
+                    }
+                },
             )
             # The store is seeded here (CONTINUI-46), but a store created this
-            # instant has no prior session to report, so nothing is injected.
+            # instant has no prior session to report, so no history section
+            # is injected — only the always-present staging instructions.
             self.assertTrue(os.path.isdir(os.path.join(tmp, ".continuity")))
 
-    def test_unsupported_newer_schema_injects_nothing_and_writes_nothing(self):
+    def test_unsupported_newer_schema_injects_no_history_and_writes_nothing(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = build_store(tmp)
             write(
@@ -263,7 +280,10 @@ class TestSessionStartHook(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             payload = json.loads(result.stdout)
-            self.assertNotIn("additionalContext", payload["hookSpecificOutput"])
+            self.assertEqual(
+                payload["hookSpecificOutput"]["additionalContext"],
+                STAGING_INSTRUCTIONS + "\n",
+            )
             with open(decisions_path, encoding="utf-8") as handle:
                 self.assertEqual(handle.read(), before)
             with open(os.path.join(store, "errors.log"), encoding="utf-8") as handle:
@@ -285,7 +305,13 @@ class TestSessionStartHook(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         payload = json.loads(result.stdout)
         self.assertEqual(
-            payload, {"hookSpecificOutput": {"hookEventName": "SessionStart"}}
+            payload["hookSpecificOutput"]["hookEventName"], "SessionStart"
+        )
+        # additionalContext always carries at least STAGING_INSTRUCTIONS
+        # (CONTINUI-47); its exact value here depends on whatever store (if
+        # any) sits under the real cwd this subprocess inherits.
+        self.assertIn(
+            STAGING_INSTRUCTIONS, payload["hookSpecificOutput"]["additionalContext"]
         )
 
 

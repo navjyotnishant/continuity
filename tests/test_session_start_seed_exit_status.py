@@ -34,6 +34,7 @@ sys.path.insert(0, REPO_ROOT)
 
 import lib.migrate as migrate_module
 from lib.migrate import SEED_FILES
+from lib.select_context import STAGING_INSTRUCTIONS
 
 SESSION_START_HOOK = os.path.join(REPO_ROOT, "hooks", "session-start.py")
 
@@ -151,8 +152,9 @@ class TestExitsZeroWhenStoreCreationFails(unittest.TestCase):
                 code, output = run_hook_in_process(tmp)
 
             self.assertEqual(code, 0)
-            self.assertNotIn(
-                "additionalContext", output.get("hookSpecificOutput", {})
+            self.assertEqual(
+                output["hookSpecificOutput"]["additionalContext"],
+                STAGING_INSTRUCTIONS + "\n",
             )
 
     @unittest.skipUnless(PERMISSIONS_ENFORCED, "chmod is not enforced here")
@@ -170,8 +172,9 @@ class TestExitsZeroWhenStoreCreationFails(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(result.stderr, "")
             output = json.loads(result.stdout)
-            self.assertNotIn(
-                "additionalContext", output.get("hookSpecificOutput", {})
+            self.assertEqual(
+                output["hookSpecificOutput"]["additionalContext"],
+                STAGING_INSTRUCTIONS + "\n",
             )
 
 

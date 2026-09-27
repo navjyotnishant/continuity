@@ -2,14 +2,22 @@
 
 contracts/hook-io-contract.md -> SessionStart, FR-007/FR-012: a project that
 has never run Continuity has no `.continuity/` directory yet. The hook must
-inject no context, must log nothing, and must never surface an error to the
-session — it just proceeds normally.
+inject no *history* (there is none to inject), must log nothing, and must
+never surface an error to the session — it just proceeds normally.
 
 CONTINUI-46 adds the other half: that first session also *seeds* the store
 from `templates/*.tmpl`, so a freshly installed plugin has a `.continuity/`
 immediately rather than whenever a checkpoint first happens to fire. Seeding
 is still silent — it changes what is on disk afterwards, never what the hook
 emits — and a store it cannot create is not an error either.
+
+CONTINUI-47: `additionalContext` itself is no longer conditional on history
+existing. It always carries the Content Channel staging instructions
+(`select_context.STAGING_INSTRUCTIONS`) — a fresh project's first session
+needs to learn the `.staged/` convention at least as much as a resuming one
+does, and that is precisely the case the old "no key at all" contract left
+silent. What "no context injected" now means is narrower: no *history*
+section is present, not that the key itself is absent.
 """
 
 import importlib.util
@@ -25,6 +33,7 @@ import unittest
 REPO_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 sys.path.insert(0, REPO_ROOT)
 
+from lib import select_context
 from lib.migrate import CURRENT_SCHEMA_VERSION, SEED_FILES
 
 SESSION_START_HOOK = os.path.join(REPO_ROOT, "hooks", "session-start.py")
@@ -41,11 +50,14 @@ _SPEC.loader.exec_module(session_start)
 
 
 class TestNoPriorHistoryInjectsNoContext(unittest.TestCase):
-    def test_build_context_returns_empty_string_for_a_project_with_no_store(self):
+    def test_build_context_returns_only_staging_instructions_for_no_store(self):
         with tempfile.TemporaryDirectory() as tmp:
-            self.assertEqual(session_start.build_context(tmp), "")
+            self.assertEqual(
+                session_start.build_context(tmp),
+                select_context.STAGING_INSTRUCTIONS + "\n",
+            )
 
-    def test_hook_output_carries_no_additional_context_key(self):
+    def test_hook_output_carries_only_the_staging_instructions_no_history(self):
         with tempfile.TemporaryDirectory() as tmp:
             payload = {"session_id": "s", "cwd": tmp}
             stdin = io.StringIO(json.dumps(payload))
@@ -54,9 +66,8 @@ class TestNoPriorHistoryInjectsNoContext(unittest.TestCase):
                 self.assertEqual(session_start.main(), 0)
 
             output = json.loads(stdout.getvalue())
-            self.assertNotIn(
-                "additionalContext", output.get("hookSpecificOutput", {})
-            )
+            context = output["hookSpecificOutput"]["additionalContext"]
+            self.assertEqual(context, select_context.STAGING_INSTRUCTIONS + "\n")
             self.assertEqual(
                 output["hookSpecificOutput"]["hookEventName"], "SessionStart"
             )
@@ -119,14 +130,15 @@ class TestNoPriorHistorySeedsTheStore(unittest.TestCase):
                 os.path.exists(os.path.join(tmp, ".continuity", "errors.log"))
             )
 
-    def test_a_seeded_store_still_injects_nothing_on_the_next_session(self):
-        """A store with no recorded history has nothing to report, seeded or not."""
+    def test_a_seeded_store_still_injects_only_staging_instructions(self):
+        """A store with no recorded history has no history to report, seeded or not."""
         with tempfile.TemporaryDirectory() as tmp:
             run_hook_in_process(tmp)
             output = run_hook_in_process(tmp)
 
-            self.assertNotIn(
-                "additionalContext", output.get("hookSpecificOutput", {})
+            self.assertEqual(
+                output["hookSpecificOutput"]["additionalContext"],
+                select_context.STAGING_INSTRUCTIONS + "\n",
             )
 
     def test_an_existing_store_is_left_exactly_as_it_was(self):
@@ -166,8 +178,9 @@ class TestNoPriorHistorySeedsTheStore(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(result.stderr, "")
             output = json.loads(result.stdout)
-            self.assertNotIn(
-                "additionalContext", output.get("hookSpecificOutput", {})
+            self.assertEqual(
+                output["hookSpecificOutput"]["additionalContext"],
+                select_context.STAGING_INSTRUCTIONS + "\n",
             )
             self.assertFalse(os.path.exists(os.path.join(project, ".continuity")))
 
@@ -187,8 +200,9 @@ class TestNoPriorHistorySessionProceedsNormally(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(result.stderr, "")
             output = json.loads(result.stdout)
-            self.assertNotIn(
-                "additionalContext", output.get("hookSpecificOutput", {})
+            self.assertEqual(
+                output["hookSpecificOutput"]["additionalContext"],
+                select_context.STAGING_INSTRUCTIONS + "\n",
             )
 
 
