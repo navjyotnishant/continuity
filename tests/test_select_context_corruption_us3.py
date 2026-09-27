@@ -189,3 +189,30 @@ class TestErrorsLogNeverCarriesRawContent(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestClobberedFileWithNoEntriesIsCorruption(unittest.TestCase):
+    """CONTINUI-51: `echo "not valid" > decisions.md` read as an empty file
+    and logged nothing, so a clobbered store lost its decisions silently."""
+
+    def test_content_with_no_entries_and_no_title_is_logged_corrupted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = os.path.join(tmp, ".continuity")
+            write(os.path.join(store, "decisions.md"), "not valid\n")
+
+            select_context(store)
+
+            log = read_errors_log(store)
+            self.assertIn("read-decisions | corrupted", log)
+            self.assertNotIn("not valid", log, "errors.log must carry no raw content")
+
+    def test_freshly_seeded_template_logs_nothing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = os.path.join(tmp, ".continuity")
+            for name in ("decisions.md", "tasks.md", "learnings.md"):
+                with open(os.path.join(REPO_ROOT, "templates", name + ".tmpl"), encoding="utf-8") as handle:
+                    write(os.path.join(store, name), handle.read())
+
+            select_context(store)
+
+            self.assertEqual(read_errors_log(store), "")

@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Entry titles no longer repeat their kind: a note headed
   `# Decision: X` is recorded as `Decision: X`, not
   `Decision: Decision: X`. (CONTINUI-50)
+- A durable file overwritten with text that has neither a title nor any entry
+  is now logged as `corrupted` in `errors.log`, instead of being read silently
+  as empty. (CONTINUI-51)
 
 ## [0.1.1] - 2026-09-27
 

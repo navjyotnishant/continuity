@@ -246,6 +246,15 @@ def _entries(continuity_dir_path, filename, require_status=False):
             continue
         current["body"].append(line)
 
+    if not entries and not _has_file_title(text):
+        # CONTINUI-51: every durable file is seeded with a `# ` title, so text
+        # with neither a title nor a single entry is a clobbered file, not an
+        # empty one. Logged so the lost entries are not lost silently.
+        continuity_log(
+            continuity_dir_path, _operation(filename), "corrupted", "no title and no entries"
+        )
+        return []
+
     entries = [entry for entry in entries if not _is_section_header(entry)]
     valid = [entry for entry in entries if _is_valid(entry, require_status)]
     skipped = len(entries) - len(valid)
@@ -259,6 +268,14 @@ def _entries(continuity_dir_path, filename, require_status=False):
             "{} of {} entries skipped as invalid".format(skipped, len(entries)),
         )
     return valid
+
+
+def _has_file_title(text):
+    """True for blank text or text whose first non-blank line is a `# ` title."""
+    for line in text.splitlines():
+        if line.strip():
+            return line.startswith("# ")
+    return True
 
 
 def _is_section_header(entry):
