@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Covers data-model.md's retention rule: lib/retention.sh prunes
+# Covers data-model.md's retention rule: lib/retention.py prunes
 # sessions/*.md and errors.log by age, but the four durable files
 # (state.md, decisions.md, tasks.md, learnings.md) are never pruned,
 # regardless of how old their mtime is.
@@ -52,8 +52,7 @@ STALE_SESSION="$CONTINUITY_DIR/sessions/20200101T000000Z-1.md"
 echo "captured_at: 2020-01-01T00:00:00Z | trigger: session-end" > "$STALE_SESSION"
 touch -t "$OLD_STAMP" "$STALE_SESSION"
 
-source "$REPO_ROOT/lib/retention.sh"
-retention_prune "$CONTINUITY_DIR"
+PYTHONPATH="$REPO_ROOT" python3 -c 'import sys; from lib.retention import retention_prune; retention_prune(sys.argv[1])' "$CONTINUITY_DIR"
 
 assert_file_exists "$CONTINUITY_DIR/state.md" "state.md must survive retention regardless of age"
 assert_file_exists "$CONTINUITY_DIR/decisions.md" "decisions.md must survive retention regardless of age"

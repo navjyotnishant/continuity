@@ -64,7 +64,7 @@ git tracks it changes (FR-020).
 ## Configuring retention and tracking in `metadata.json`
 
 `.continuity/metadata.json` holds two fields you can hand-edit at any
-time; `write_memory.sh` and `retention.sh` re-read this file on every run,
+time; `lib/write_memory.py` and `lib/retention.py` re-read this file on every run,
 so an edit takes effect immediately, without restarting a session:
 
 - `retention_days` (default `60`) — how long session-history files under
