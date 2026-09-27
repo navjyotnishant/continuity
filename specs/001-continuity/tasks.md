@@ -43,12 +43,12 @@ below are repository-root-relative.
 
 **Purpose**: Repository scaffolding for the plugin tree.
 
-- [ ] T001 Create the plugin directory tree: `.claude-plugin/`, `hooks/`,
+- [x] T001 Create the plugin directory tree: `.claude-plugin/`, `hooks/`,
   `commands/`, `lib/`, `templates/`, `tests/`, and `docs/` (if not already
   present) at the repository root.
   Done when: all seven directories exist (empty is fine) and `git status`
   shows no unexpected files created.
-- [ ] T002 [P] Create `lib/common.py` with: a function to resolve the
+- [x] T002 [P] Create `lib/common.py` with: a function to resolve the
   project's `.continuity/` path from a given `cwd` argument, a
   `continuity_log(operation, failure_kind, detail)` function that appends
   a scrubbed line to `.continuity/errors.log` per
@@ -59,7 +59,7 @@ below are repository-root-relative.
   unparseable).
   Done when: `lib/common.py` defines all three functions and
   `tests/test_common.py` (T003) passes.
-- [ ] T003 [P] Create `tests/run_tests.py`: a single entry point that calls
+- [x] T003 [P] Create `tests/run_tests.py`: a single entry point that calls
   `unittest.main()` against `python3 -m unittest discover -s tests` (no
   hand-rolled assertion helpers — stdlib `unittest.TestCase`'s
   `assertEqual`/`assertTrue`/etc. cover it, per research.md R6), exiting
@@ -80,26 +80,26 @@ future session on a project, not just the triggering one.
 
 **⚠️ CRITICAL**: No user-story work begins until this phase is complete.
 
-- [ ] T004 [P] Create `lib/atomic_write.py` implementing the write-via-
+- [x] T004 [P] Create `lib/atomic_write.py` implementing the write-via-
   `tempfile.NamedTemporaryFile`(same directory as `<target>`, prefix
   `<target's basename>.tmp.` so the crash-debris sweep in T030 can still
   glob it)-then-`os.replace()` pattern from `contracts/file-format-
   contract.md` → Atomicity, refusing to overwrite `<target>` with empty
   content (data-model.md's State Note validation rule).
   Done when: `tests/test_atomic_write.py` (T009) passes.
-- [ ] T005 [P] Create `lib/lock.py` with `lock_acquire(path, timeout=None)`
+- [x] T005 [P] Create `lib/lock.py` with `lock_acquire(path, timeout=None)`
   and `lock_release(path)` using `os.mkdir(f"{path}/.lock")` as the atomic
   claim (raises `FileExistsError` on contention), retrying briefly on
   contention, and breaking (removing) a lock directory older than 10 seconds
   before retrying once more, per research.md R2.
   Done when: `tests/test_lock.py` (T010) passes.
-- [ ] T006 [P] Create `lib/secret_scan.py` with `secret_scan_line(text)`
+- [x] T006 [P] Create `lib/secret_scan.py` with `secret_scan_line(text)`
   returning the matched pattern name (or `None`) for an AWS-style access
   key, a `key|token|secret|password=` assignment pattern, a PEM private-key
   header, or a long high-entropy hex/base64 run, per research.md R5 (using
   `re`); `None` for ordinary text.
   Done when: `tests/test_secret_scan.py` (T011) passes.
-- [ ] T007 Create `lib/migrate.py` with `metadata_ensure(continuity_dir)`
+- [x] T007 Create `lib/migrate.py` with `metadata_ensure(continuity_dir)`
   (creates `metadata.json` from `templates/metadata.json.tmpl` if absent)
   and `metadata_check_and_migrate(continuity_dir)` implementing
   `contracts/file-format-contract.md`'s `metadata.json` compatibility rules
@@ -107,7 +107,7 @@ future session on a project, not just the triggering one.
   version). Depends on T002 (uses `common.py` logging) and T004 (uses
   atomic writes for the migrated files).
   Done when: `tests/test_migrate.py` (T012) passes.
-- [ ] T008 [P] Create the five seed templates: `templates/state.md.tmpl`,
+- [x] T008 [P] Create the five seed templates: `templates/state.md.tmpl`,
   `templates/decisions.md.tmpl`, `templates/tasks.md.tmpl`,
   `templates/learnings.md.tmpl`, `templates/metadata.json.tmpl`, each
   matching the field shapes in data-model.md (state.md includes an empty
@@ -118,14 +118,14 @@ future session on a project, not just the triggering one.
   (`python3 -m json.tool < templates/metadata.json.tmpl` or equivalent
   exits 0 — used only as a validation check here, not a runtime
   dependency).
-- [ ] T009 [P] Create `tests/test_atomic_write.py`: writes a file, verifies
+- [x] T009 [P] Create `tests/test_atomic_write.py`: writes a file, verifies
   its content; simulates a crash by writing the `NamedTemporaryFile` path
   and never calling `os.replace()`, then asserts the original target is
   unchanged and a stray `.tmp.*`-prefixed file is left behind (setup for
   T032's sweep).
   Done when: `python3 -m unittest tests.test_atomic_write` exits 0 once T004
   exists.
-- [ ] T010 [P] Create `tests/test_lock.py`: two independent processes
+- [x] T010 [P] Create `tests/test_lock.py`: two independent processes
   (spawned with `multiprocessing.Process` or `subprocess.Popen`, per
   plan.md's Testing Strategy) race `lock_acquire` on the same path —
   asserts exactly one returns immediately and the other either succeeds
@@ -133,12 +133,12 @@ future session on a project, not just the triggering one.
   lock dir older than 10 seconds (fabricated with `os.utime()`) is broken
   and re-acquired.
   Done when: `python3 -m unittest tests.test_lock` exits 0 once T005 exists.
-- [ ] T011 [P] Create `tests/test_secret_scan.py`: asserts each of the
+- [x] T011 [P] Create `tests/test_secret_scan.py`: asserts each of the
   four secret-shaped fixtures from research.md R5 is rejected, and three
   ordinary-prose fixtures are accepted.
   Done when: `python3 -m unittest tests.test_secret_scan` exits 0 once T006
   exists.
-- [ ] T012 Create `tests/test_migrate.py`: asserts a file at the current
+- [x] T012 Create `tests/test_migrate.py`: asserts a file at the current
   schema version is unchanged; a file at the previous version gains the
   current `schema_version` after migration; a file at an unsupported newer
   version is byte-for-byte unchanged and `errors.log` gains an
@@ -176,11 +176,11 @@ end it, start a new session, confirm the opening context includes both
 
 ### Tests for User Story 1
 
-- [ ] T013 [P] [US1] Create `tests/test_select_context.py`: builds a fixture
+- [x] T013 [P] [US1] Create `tests/test_select_context.py`: builds a fixture
   `.continuity/` store exceeding the ~100–200 line target and asserts the
   output of `lib/select_context.py` stays within it; builds an empty/absent
   store and asserts empty output with no error (covers FR-005/FR-007).
-- [ ] T014 [P] [US1] Create `tests/test_write_memory_basic.py`: writes a
+- [x] T014 [P] [US1] Create `tests/test_write_memory_basic.py`: writes a
   fixture staged note to `.continuity/.staged/decision-<ts>-<pid>.md`
   (T017a's Content Channel), then invokes `lib/write_memory.py` against
   the fixture `cwd` with a synthetic `file-change` trigger, and asserts
@@ -190,7 +190,7 @@ end it, start a new session, confirm the opening context includes both
 
 ### Implementation for User Story 1
 
-- [ ] T015 [US1] Create `lib/select_context.py` implementing
+- [x] T015 [US1] Create `lib/select_context.py` implementing
   `select_context(continuity_dir)`: reads `state.md` (whole file if under
   budget), `decisions.md`/`tasks.md`/`learnings.md` (most-recent-first,
   `active`/`blocked` tasks prioritized over `done`, per data-model.md's
@@ -201,7 +201,7 @@ end it, start a new session, confirm the opening context includes both
   (`metadata_check_and_migrate` gates this) and T004 (reads via the same
   file-format assumptions `atomic_write.py` guarantees).
   Done when: `tests/test_select_context.py` (T013) passes.
-- [ ] T016 [US1] Create `hooks/session-start.py`: reads the stdin JSON
+- [x] T016 [US1] Create `hooks/session-start.py`: reads the stdin JSON
   payload, resolves `.continuity/` from `cwd`, calls
   `metadata_check_and_migrate` then `select_context`, and emits the
   `hookSpecificOutput.additionalContext` JSON exactly as specified in
@@ -211,7 +211,7 @@ end it, start a new session, confirm the opening context includes both
   `python3 hooks/session-start.py` against a populated fixture project prints
   valid JSON containing the labeled context block, and against an absent
   `.continuity/` prints valid JSON with no `additionalContext` key.
-- [ ] T017a [US1] Establish the Content Channel: define
+- [x] T017a [US1] Establish the Content Channel: define
   `.continuity/.staged/<kind>-<UTC-timestamp>-<pid>.md` per
   `contracts/hook-io-contract.md`'s new "Content Channel" section
   (`<kind>` one of `decision`/`task`/`learning`/`handoff`, body is plain
@@ -222,7 +222,7 @@ end it, start a new session, confirm the opening context includes both
   Done when: `contracts/hook-io-contract.md` and `plan.md`'s Content
   Channel section agree on the path format, and T017/T018 reference it
   rather than an undefined "determine what content" step.
-- [ ] T017 [US1] Create `lib/write_memory.py` implementing
+- [x] T017 [US1] Create `lib/write_memory.py` implementing
   `write_memory(cwd, trigger_kind)` (also runnable as
   `python3 lib/write_memory.py <cwd> <trigger-kind>` via `argparse`, since
   hooks and the checkpoint command invoke it as a subprocess, not an
@@ -239,7 +239,7 @@ end it, start a new session, confirm the opening context includes both
   if `.staged/` is empty (FR-011). Depends on T004, T005, T006, T007,
   T017a.
   Done when: `tests/test_write_memory_basic.py` (T014) passes.
-- [ ] T018 [US1] [P] Create `commands/continuity-checkpoint.md`: a slash
+- [x] T018 [US1] [P] Create `commands/continuity-checkpoint.md`: a slash
   command whose own logic (run by Claude) first writes a staged note under
   `.continuity/.staged/` (T017a) for whatever is worth capturing right
   now, then synchronously invokes
@@ -252,7 +252,7 @@ end it, start a new session, confirm the opening context includes both
   note produces a new `sessions/*.md` file and a confirmation message;
   against a fixture project with nothing staged, produces a "nothing to
   checkpoint" message and no new file.
-- [ ] T019 [US1] Create `hooks/capture-trigger.py` implementing the
+- [x] T019 [US1] Create `hooks/capture-trigger.py` implementing the
   `PostToolUse` classification from `contracts/hook-io-contract.md`
   (meaningful `Edit`/`Write`/`MultiEdit` diff, or a `git`-touching `Bash`
   call with a non-whitespace `git diff --stat`); on a meaningful signal,
@@ -297,12 +297,12 @@ confirm no background writer is ever waited on (quickstart.md Scenario 2).
 
 ### Tests for User Story 2
 
-- [ ] T020 [P] [US2] Create `tests/test_detach.py`: invokes
+- [x] T020 [P] [US2] Create `tests/test_detach.py`: invokes
   `hooks/capture-trigger.py` with a fixture `write_memory.py` stub that
   sleeps for 2 seconds, and asserts the hook script itself returns in under
   200ms (proving the writer is detached, not awaited) — the timing margin
   the real hook needs to hold well inside per plan.md's Performance Goals.
-- [ ] T021 [P] [US2] Extend `tests/test_write_memory_basic.py` (T014) or add
+- [x] T021 [P] [US2] Extend `tests/test_write_memory_basic.py` (T014) or add
   `tests/test_no_llm_call.py` asserting `lib/write_memory.py` and
   `hooks/session-start.py` invoke no network call and no external process
   other than Python stdlib/git (grep the scripts for the absence of
@@ -312,7 +312,7 @@ confirm no background writer is ever waited on (quickstart.md Scenario 2).
 
 ### Implementation for User Story 2
 
-- [ ] T022 [US2] Verify and, if needed, correct the detachment idiom in
+- [x] T022 [US2] Verify and, if needed, correct the detachment idiom in
   `hooks/capture-trigger.py` (T019) and add the identical
   `subprocess.Popen(..., **detach_kwargs)` launch to `hooks/session-end.py`
   (new file, implementing `contracts/hook-io-contract.md` → `SessionEnd`:
@@ -321,14 +321,14 @@ confirm no background writer is ever waited on (quickstart.md Scenario 2).
   with no output).
   Done when: `tests/test_detach.py` (T020) passes for both
   `capture-trigger.py` and `session-end.py`.
-- [ ] T023 [US2] [P] Create `hooks/hooks.json` registering `SessionStart` →
+- [x] T023 [US2] [P] Create `hooks/hooks.json` registering `SessionStart` →
   `hooks/session-start.py`, `PostToolUse` (matcher
   `Edit|Write|MultiEdit|Bash`) → `hooks/capture-trigger.py`, and
   `SessionEnd` → `hooks/session-end.py`, using `${CLAUDE_PLUGIN_ROOT}` for
   every command path per research.md R7.
   Done when: the JSON is valid (`python3 -m json.tool` or equivalent exits
   0) and every `command` path resolves under `${CLAUDE_PLUGIN_ROOT}`.
-- [ ] T024 [HUMAN] [US2] Install the plugin into a real Claude Code session
+- [x] T024 [HUMAN] [US2] Install the plugin into a real Claude Code session
   (per whatever install flow T035's marketplace listing provides) and run
   quickstart.md Scenario 2's timed comparison for at least 10 interactive
   turns, recording the millisecond deltas.
@@ -365,7 +365,7 @@ normally, with the failure only visible in `errors.log`
 
 ### Tests for User Story 3
 
-- [ ] T025 [P] [US3] Create `tests/test_fail_open.py`: for each of (a)
+- [x] T025 [P] [US3] Create `tests/test_fail_open.py`: for each of (a)
   missing `.continuity/`, (b) a corrupted `decisions.md` (invalid entry —
   missing `captured_at`), (c) an unreadable `state.md` (`chmod 000`), and
   (d) a `.continuity/` directory itself `chmod 000` during a write attempt
@@ -377,19 +377,19 @@ normally, with the failure only visible in `errors.log`
 
 ### Implementation for User Story 3
 
-- [ ] T026 [US3] Add per-entry fail-open parsing to `lib/select_context.py`
+- [x] T026 [US3] Add per-entry fail-open parsing to `lib/select_context.py`
   (T015): a malformed entry in `decisions.md`/`tasks.md`/`learnings.md` (per
   `contracts/file-format-contract.md`'s entry-validity rule) is skipped and
   logged, not fatal to the rest of the file; a `state.md` failing its
   `updated_at` check is treated as if `state.md` were absent, logged as
   `corrupted`.
   Done when: `tests/test_fail_open.py` (T025) cases (a) and (b) pass.
-- [ ] T027 [US3] Add read/permission error handling to
+- [x] T027 [US3] Add read/permission error handling to
   `lib/select_context.py` and `hooks/session-start.py`: an unreadable file
   is caught (not an uncaught exception), logged as `unreadable`, and
   treated as absent for that file only.
   Done when: `tests/test_fail_open.py` (T025) case (c) passes.
-- [ ] T028 [US3] Add write-failure handling to `lib/write_memory.py` and
+- [x] T028 [US3] Add write-failure handling to `lib/write_memory.py` and
   `lib/lock.py`: a failed `os.mkdir()` (lock), a failed `os.replace()`
   (atomic write), or an unwritable `.continuity/` directory causes
   `write_memory.py` to abort
@@ -400,7 +400,7 @@ normally, with the failure only visible in `errors.log`
   Done when: `tests/test_fail_open.py` (T025) case (d) passes, and
   `tests/test_atomic_write.py` (T009)'s crash-simulation case still holds
   (no regression).
-- [ ] T029 [US3] Add `.continuity/` auto-creation to `lib/write_memory.py`:
+- [x] T029 [US3] Add `.continuity/` auto-creation to `lib/write_memory.py`:
   if `.continuity/` is absent when a trigger fires, create it and seed it
   from `templates/*.tmpl` (T008) before proceeding, rather than failing.
   Done when: running `lib/write_memory.py` against a `cwd` with no
@@ -418,7 +418,7 @@ every documented failure mode (US3).
 required for any single user story's acceptance criteria, but all of it is
 required before the plugin ships.
 
-- [ ] T030 [P] Create `lib/retention.py` implementing
+- [x] T030 [P] Create `lib/retention.py` implementing
   `retention_prune(continuity_dir)`: deletes any file under `sessions/`
   older than `retention_days` (parsed from the filename per
   `contracts/file-format-contract.md`, not file mtime), trims `errors.log`
@@ -427,34 +427,34 @@ required before the plugin ships.
   of a successful `lib/write_memory.py` run (plan.md's Implementation Order
   step 4 — piggybacks on an already-scheduled background process).
   Done when: `tests/test_retention.py` (T031) passes.
-- [ ] T031 [P] Create `tests/test_retention.py`: fabricates a `sessions/`
+- [x] T031 [P] Create `tests/test_retention.py`: fabricates a `sessions/`
   file older than the retention window and one inside it, asserts only the
   older one is pruned; asserts durable files (`state.md` etc.) are never
   touched regardless of age; asserts a fabricated stale `.tmp.*` file is
   swept.
-- [ ] T032 Wire `retention_prune` into the end of `lib/write_memory.py`
+- [x] T032 Wire `retention_prune` into the end of `lib/write_memory.py`
   (T017)'s successful path.
   Done when: `tests/test_write_memory_basic.py` (T014) still passes and a
   fabricated stale `sessions/` file is gone after a `write_memory.py` run
   in the same test fixture.
-- [ ] T033 [P] Create `.claude-plugin/plugin.json`: the plugin manifest
+- [x] T033 [P] Create `.claude-plugin/plugin.json`: the plugin manifest
   (name `continuity`, version, description, and the hooks entrypoint
   pointing at `hooks/hooks.json`), per Claude Code's plugin manifest format.
   Done when: the file is valid JSON and names every hook script T016, T019,
   and T022 create.
-- [ ] T034 [P] Create `.claude-plugin/marketplace.json`: lists this
+- [x] T034 [P] Create `.claude-plugin/marketplace.json`: lists this
   repository as a GitHub-hosted marketplace source for the `continuity`
   plugin (FR-015).
   Done when: the file is valid JSON and matches whatever schema Claude
   Code's marketplace format requires at implementation time (verify against
   current Claude Code plugin docs before finalizing field names).
-- [ ] T035 [HUMAN] Publish/register this repository as an installable
+- [x] T035 [HUMAN] Publish/register this repository as an installable
   marketplace source and confirm a real Claude Code session can install the
   `continuity` plugin from it.
   Done when: a plugin-install command against this repository's
   marketplace succeeds in a live Claude Code session and the plugin appears
   active.
-- [ ] T036 [P] Create `docs/install.md`: documents that `.continuity/` is
+- [x] T036 [P] Create `docs/install.md`: documents that `.continuity/` is
   git-tracked by default (Q1), gives the exact `.gitignore` + (if needed)
   `git rm -r --cached .continuity/` steps for the opt-out (FR-020), states
   plainly that `lib/secret_scan.py` is a mitigation and not a guarantee
@@ -462,13 +462,13 @@ required before the plugin ships.
   user-editable fields in `metadata.json`.
   Done when: following the documented opt-out steps against a fixture repo
   produces the outcome quickstart.md Scenario 5 describes.
-- [ ] T037 [HUMAN] Run quickstart.md Scenarios 1, 3, 4, and 5 end-to-end in
+- [x] T037 [HUMAN] Run quickstart.md Scenarios 1, 3, 4, and 5 end-to-end in
   a live Claude Code session (Scenario 2 is covered by T024) and record any
   deviation from their stated "Expected" outcomes.
   Done when: all four scenarios' Expected outcomes are confirmed, or any
   deviation is filed as a follow-up task before this feature is marked
   done.
-- [ ] T038 Run `python3 tests/run_tests.py` and confirm every test file from
+- [x] T038 Run `python3 tests/run_tests.py` and confirm every test file from
   Phases 1–6 passes together (not just individually), and re-run
   `contracts/hook-io-contract.md`'s and `contracts/file-format-contract.md`'s
   rules as a final read-through checklist against the finished `hooks/*.py`

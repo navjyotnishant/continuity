@@ -14,3 +14,8 @@ __pycache__/
 .env.*
 *.pem
 *.key
+
+# This repo's own Continuity store holds one developer's working notes about
+# building the plugin, so it opts out of git tracking (docs/install.md). The
+# plugin's default for other projects is still to track it.
+.continuity/
