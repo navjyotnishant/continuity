@@ -36,7 +36,7 @@ sys.path.insert(0, REPO_ROOT)
 
 import lib.migrate as migrate_module
 from lib.migrate import SEED_FILES
-from lib.select_context import STAGING_INSTRUCTIONS
+from lib.select_context import staging_instructions
 
 SESSION_START_HOOK = os.path.join(REPO_ROOT, "hooks", "session-start.py")
 
@@ -196,7 +196,7 @@ class TestSeedingIsSynchronous(unittest.TestCase):
 
             self.assertEqual(
                 output["hookSpecificOutput"]["additionalContext"],
-                STAGING_INSTRUCTIONS + "\n",
+                staging_instructions(os.path.join(tmp, ".continuity")) + "\n",
             )
             for name in SEED_FILES:
                 self.assertTrue(

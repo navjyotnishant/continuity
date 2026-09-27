@@ -29,7 +29,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from lib.common import continuity_dir, continuity_log
 from lib.migrate import metadata_check_and_migrate, metadata_ensure, seed_store
-from lib.select_context import STAGING_INSTRUCTIONS, select_context
+from lib.select_context import select_context, staging_instructions
 
 HOOK_EVENT_NAME = "SessionStart"
 
@@ -68,9 +68,9 @@ def build_context(cwd):
     if not os.path.isdir(continuity_dir_path):
         metadata_ensure(continuity_dir_path)
         seed_store(continuity_dir_path)
-        return STAGING_INSTRUCTIONS + "\n"
+        return staging_instructions(continuity_dir_path) + "\n"
     if not metadata_check_and_migrate(continuity_dir_path):
-        return STAGING_INSTRUCTIONS + "\n"
+        return staging_instructions(continuity_dir_path) + "\n"
     return select_context(continuity_dir_path)
 
 
@@ -86,7 +86,7 @@ def main():
         continuity_log(
             continuity_dir(cwd), "session-start-load", "unreadable", type(error).__name__
         )
-        context = STAGING_INSTRUCTIONS + "\n"
+        context = staging_instructions(continuity_dir(cwd)) + "\n"
 
     output = {"hookSpecificOutput": {"hookEventName": HOOK_EVENT_NAME}}
     output["hookSpecificOutput"]["additionalContext"] = context

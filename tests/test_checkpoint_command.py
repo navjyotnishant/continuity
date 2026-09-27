@@ -2,7 +2,7 @@
 staged (commands/continuity-checkpoint.md, Step 2/3).
 
 The command's Step 2 is exactly `python3 lib/write_memory.py
-"$CLAUDE_PROJECT_DIR" explicit-checkpoint`; its Step 3 says to relay the
+"<project root>" explicit-checkpoint`; its Step 3 says to relay the
 writer's one-line result unchanged. With nothing staged, that result must be
 "Nothing new to checkpoint" and no new file must appear anywhere under
 `.continuity/` — a checkpoint with nothing new is a legitimate outcome, not

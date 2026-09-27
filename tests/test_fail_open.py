@@ -27,7 +27,7 @@ import unittest
 REPO_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 sys.path.insert(0, REPO_ROOT)
 
-from lib.select_context import STAGING_INSTRUCTIONS
+from lib.select_context import staging_instructions
 
 SESSION_START_HOOK = os.path.join(REPO_ROOT, "hooks", "session-start.py")
 WRITE_MEMORY = os.path.join(REPO_ROOT, "lib", "write_memory.py")
@@ -130,7 +130,7 @@ class TestMissingStore(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
-                injected_context(result), STAGING_INSTRUCTIONS + "\n"
+                injected_context(result), staging_instructions(os.path.join(project, ".continuity")) + "\n"
             )
             store = os.path.join(project, ".continuity")
             self.assertTrue(os.path.isdir(store))

@@ -1,6 +1,6 @@
 ---
 description: Checkpoint what this session has learned into .continuity/ right now
-allowed-tools: Write, Bash(python3:*)
+allowed-tools: Write, Bash(python3:*), Bash(pwd)
 ---
 
 # /continuity-checkpoint
@@ -10,6 +10,11 @@ waiting for the next automatic trigger. Unlike every other Continuity path
 this one is synchronous — the user asked for it and is waiting, so there is
 no latency budget to protect (`contracts/hook-io-contract.md` →
 `/continuity-checkpoint`).
+
+This project's root is: !`pwd`
+
+Every path below is under that absolute root — never under Claude Code's own
+memory directory (CONTINUI-49).
 
 ## Step 1 — stage what is worth keeping (the Content Channel)
 
@@ -22,7 +27,7 @@ would need and could not re-derive from the code. For each such item, use the
 Write tool to create one file:
 
 ```text
-$CLAUDE_PROJECT_DIR/.continuity/.staged/<kind>-<UTC-timestamp>-<pid>.md
+<project root above>/.continuity/.staged/<kind>-<UTC-timestamp>-<pid>.md
 ```
 
 - `<kind>` is exactly one of `decision`, `task`, `learning`, `handoff`.
@@ -46,7 +51,7 @@ it.
 Run the writer synchronously:
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/lib/write_memory.py" "$CLAUDE_PROJECT_DIR" explicit-checkpoint
+python3 "${CLAUDE_PLUGIN_ROOT}/lib/write_memory.py" "<project root above>" explicit-checkpoint
 ```
 
 It secret-scans every staged line, appends each note into its durable file

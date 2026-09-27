@@ -24,7 +24,7 @@ import unittest
 REPO_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 sys.path.insert(0, REPO_ROOT)
 
-from lib.select_context import STAGING_INSTRUCTIONS, _entries, _read_state
+from lib.select_context import staging_instructions, _entries, _read_state
 from lib.write_memory import SEED_FILES, write_memory
 
 SESSION_START_HOOK = os.path.join(REPO_ROOT, "hooks", "session-start.py")
@@ -90,10 +90,10 @@ class TestSessionStartWithNoStore(unittest.TestCase):
 
             self.assertEqual(
                 output["hookSpecificOutput"]["additionalContext"],
-                STAGING_INSTRUCTIONS + "\n",
+                staging_instructions(os.path.join(tmp, ".continuity")) + "\n",
             )
             self.assertEqual(
-                session_start.build_context(tmp), STAGING_INSTRUCTIONS + "\n"
+                session_start.build_context(tmp), staging_instructions(os.path.join(tmp, ".continuity")) + "\n"
             )
 
 
@@ -200,7 +200,7 @@ class TestPartialStore(unittest.TestCase):
             )
             self.assertEqual(
                 output["hookSpecificOutput"]["additionalContext"],
-                STAGING_INSTRUCTIONS + "\n",
+                staging_instructions(os.path.join(tmp, ".continuity")) + "\n",
             )
             self.assertFalse(
                 os.path.exists(os.path.join(store, "errors.log")),

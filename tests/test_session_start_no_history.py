@@ -13,7 +13,7 @@ emits — and a store it cannot create is not an error either.
 
 CONTINUI-47: `additionalContext` itself is no longer conditional on history
 existing. It always carries the Content Channel staging instructions
-(`select_context.STAGING_INSTRUCTIONS`) — a fresh project's first session
+(`select_context.staging_instructions`) — a fresh project's first session
 needs to learn the `.staged/` convention at least as much as a resuming one
 does, and that is precisely the case the old "no key at all" contract left
 silent. What "no context injected" now means is narrower: no *history*
@@ -54,7 +54,7 @@ class TestNoPriorHistoryInjectsNoContext(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             self.assertEqual(
                 session_start.build_context(tmp),
-                select_context.STAGING_INSTRUCTIONS + "\n",
+                select_context.staging_instructions(os.path.join(tmp, ".continuity")) + "\n",
             )
 
     def test_hook_output_carries_only_the_staging_instructions_no_history(self):
@@ -67,7 +67,7 @@ class TestNoPriorHistoryInjectsNoContext(unittest.TestCase):
 
             output = json.loads(stdout.getvalue())
             context = output["hookSpecificOutput"]["additionalContext"]
-            self.assertEqual(context, select_context.STAGING_INSTRUCTIONS + "\n")
+            self.assertEqual(context, select_context.staging_instructions(os.path.join(tmp, ".continuity")) + "\n")
             self.assertEqual(
                 output["hookSpecificOutput"]["hookEventName"], "SessionStart"
             )
@@ -138,7 +138,7 @@ class TestNoPriorHistorySeedsTheStore(unittest.TestCase):
 
             self.assertEqual(
                 output["hookSpecificOutput"]["additionalContext"],
-                select_context.STAGING_INSTRUCTIONS + "\n",
+                select_context.staging_instructions(os.path.join(tmp, ".continuity")) + "\n",
             )
 
     def test_an_existing_store_is_left_exactly_as_it_was(self):
@@ -180,7 +180,7 @@ class TestNoPriorHistorySeedsTheStore(unittest.TestCase):
             output = json.loads(result.stdout)
             self.assertEqual(
                 output["hookSpecificOutput"]["additionalContext"],
-                select_context.STAGING_INSTRUCTIONS + "\n",
+                select_context.staging_instructions(os.path.join(project, ".continuity")) + "\n",
             )
             self.assertFalse(os.path.exists(os.path.join(project, ".continuity")))
 
@@ -202,7 +202,7 @@ class TestNoPriorHistorySessionProceedsNormally(unittest.TestCase):
             output = json.loads(result.stdout)
             self.assertEqual(
                 output["hookSpecificOutput"]["additionalContext"],
-                select_context.STAGING_INSTRUCTIONS + "\n",
+                select_context.staging_instructions(os.path.join(tmp, ".continuity")) + "\n",
             )
 
 

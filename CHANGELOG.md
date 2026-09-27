@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The plugin no longer reports "failed to load". Its manifest named
   `hooks/hooks.json`, which Claude Code already loads automatically, so the
   hooks were registered twice. (CONTINUI-48)
+- SessionStart's recording instructions and `/continuity-checkpoint` now give
+  the project's absolute `.continuity/.staged/` path. The bare relative path
+  could be resolved against Claude Code's own memory directory instead, and
+  notes never reached the project store. (CONTINUI-49)
 
 ## [0.1.1] - 2026-09-27
 

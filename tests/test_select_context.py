@@ -20,7 +20,7 @@ from lib.select_context import (
     LABEL,
     MAX_BYTES,
     MAX_LINES,
-    STAGING_INSTRUCTIONS,
+    staging_instructions,
     select_context,
 )
 
@@ -110,7 +110,7 @@ class TestSelectContext(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             context = select_context(build_store(tmp))
 
-            self.assertTrue(context.startswith(STAGING_INSTRUCTIONS))
+            self.assertTrue(context.startswith(staging_instructions(os.path.join(tmp, ".continuity"))))
             self.assertIn(LABEL, context)
             for heading in (
                 "## State (as of 2026-09-12T09:00:00Z)",
@@ -156,14 +156,14 @@ class TestSelectContext(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             self.assertEqual(
                 select_context(os.path.join(tmp, ".continuity")),
-                STAGING_INSTRUCTIONS + "\n",
+                staging_instructions(os.path.join(tmp, ".continuity")) + "\n",
             )
 
     def test_empty_store_still_carries_staging_instructions_not_an_error(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = os.path.join(tmp, ".continuity")
             os.makedirs(store)
-            self.assertEqual(select_context(store), STAGING_INSTRUCTIONS + "\n")
+            self.assertEqual(select_context(store), staging_instructions(os.path.join(tmp, ".continuity")) + "\n")
 
     def test_malformed_entry_is_skipped_without_hiding_its_siblings(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -256,7 +256,7 @@ class TestSessionStartHook(unittest.TestCase):
                 {
                     "hookSpecificOutput": {
                         "hookEventName": "SessionStart",
-                        "additionalContext": STAGING_INSTRUCTIONS + "\n",
+                        "additionalContext": staging_instructions(os.path.join(tmp, ".continuity")) + "\n",
                     }
                 },
             )
@@ -282,7 +282,7 @@ class TestSessionStartHook(unittest.TestCase):
             payload = json.loads(result.stdout)
             self.assertEqual(
                 payload["hookSpecificOutput"]["additionalContext"],
-                STAGING_INSTRUCTIONS + "\n",
+                staging_instructions(os.path.join(tmp, ".continuity")) + "\n",
             )
             with open(decisions_path, encoding="utf-8") as handle:
                 self.assertEqual(handle.read(), before)
@@ -307,13 +307,38 @@ class TestSessionStartHook(unittest.TestCase):
         self.assertEqual(
             payload["hookSpecificOutput"]["hookEventName"], "SessionStart"
         )
-        # additionalContext always carries at least STAGING_INSTRUCTIONS
-        # (CONTINUI-47); its exact value here depends on whatever store (if
-        # any) sits under the real cwd this subprocess inherits.
+        # additionalContext always carries at least the staging instructions
+        # (CONTINUI-47), naming the store under the real cwd this subprocess
+        # inherits (CONTINUI-49); the rest depends on whatever store sits there.
         self.assertIn(
-            STAGING_INSTRUCTIONS, payload["hookSpecificOutput"]["additionalContext"]
+            staging_instructions(os.path.join(os.getcwd(), ".continuity")),
+            payload["hookSpecificOutput"]["additionalContext"],
         )
 
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestStagingInstructionsNameTheProjectStore(unittest.TestCase):
+    """CONTINUI-49: a bare `.continuity/.staged/` was resolved against Claude
+    Code's own memory directory, so notes never reached the project store."""
+
+    def test_hook_output_names_the_absolute_staged_dir_for_its_cwd(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = subprocess.run(
+                [sys.executable, SESSION_START_HOOK],
+                input=json.dumps({"session_id": "s", "cwd": tmp}),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=30,
+            )
+
+            context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+            staged_dir = os.path.join(os.path.abspath(tmp), ".continuity", ".staged")
+            self.assertIn("`{}/<kind>-".format(staged_dir), context)
+
+    def test_relative_store_path_is_rendered_absolute(self):
+        rendered = staging_instructions(".continuity")
+        self.assertIn(os.path.join(os.getcwd(), ".continuity", ".staged"), rendered)
