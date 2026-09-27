@@ -1,6 +1,6 @@
 # Continuity
 
-Cross-session memory for Claude Code — as a plugin, not a service.
+Cross-session memory for coding agents — as a plugin, not a service.
 
 Every new Claude Code session starts with no memory of the last one, so a
 developer re-explains the same decisions, constraints, and open tasks over
@@ -21,7 +21,7 @@ implementation phases in
 
 ## Why a plugin, not a service
 
-Continuity ships strictly as a Claude Code plugin distributed via a
+Continuity ships as a plugin for Claude Code, Codex and Cursor, distributed via a
 GitHub-hosted marketplace — no separate server, no database installation, no
 cloud dependency, and no Go, Node, or other standalone runtime. The entire
 implementation is Python 3.9+ standard library only — no third-party
@@ -79,7 +79,7 @@ task-by-task build order.
 
 ## Installing (once implemented)
 
-Continuity will install like any other Claude Code plugin, from this repo's
+Continuity will install like any other plugin for Claude Code, Codex or Cursor, from this repo's
 marketplace listing (`.claude-plugin/marketplace.json`). Install
 instructions will live in `docs/install.md` once the plugin manifest exists,
 including the documented `.gitignore` opt-out for teams that want

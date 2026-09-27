@@ -1,5 +1,46 @@
 # Install notes: `.continuity/` and git
 
+## Install per coding agent
+
+Continuity is one plugin with one manifest per coding agent. Install it from this
+repository's marketplace in whichever agent you use:
+
+### Claude Code
+
+```text
+/plugin marketplace add navjyotnishant/continuity
+/plugin install continuity@continuity
+```
+
+Start a new session afterwards.
+
+### Codex
+
+Add the marketplace `https://github.com/navjyotnishant/continuity.git` in Codex's plugin
+settings (CLI: `codex plugin marketplace add <owner/repo|git-url|path>`, then
+`codex plugin add continuity@<marketplace-name>`), then install `continuity`. Codex asks
+you to **review and trust the plugin's hooks** once. Until you do, it installs but never
+recalls or captures. Codex loads skills, not commands, so checkpoint with the
+`continuity-checkpoint` skill.
+
+### Cursor
+
+Add the same repository as a team or local marketplace (CLI: `cursor-agent plugin
+marketplace add <git-url>`). Cursor has no headless plugin-install command: after the
+marketplace is added, install `continuity` from Cursor's plugin UI. Cursor reads
+`.cursor-plugin/plugin.json` and its hooks from `hooks/cursor-hooks.json`.
+
+### Claude Desktop (Cowork): not supported
+
+Cowork does not run plugin hooks, so Continuity can neither recall nor capture there
+([anthropics/claude-code#40495](https://github.com/anthropics/claude-code/issues/40495)).
+This section changes once that is fixed.
+
+### Updating
+
+Refresh the marketplace, reinstall, and start a new session. A running session keeps
+the version it started with.
+
 ## `.continuity/` is git-tracked by default
 
 Continuity writes its state, decisions, tasks, and learnings into a
