@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as empty. (CONTINUI-51)
 - A newly created store records the installed plugin's version in
   `metadata.json` instead of a hardcoded `0.1.0`. (CONTINUI-52)
+- `docs/install.md` names the secret scanner's real file,
+  `lib/secret_scan.py`. (CONTINUI-53)
 
 ## [0.1.1] - 2026-09-27
 
