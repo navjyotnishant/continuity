@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.9+ standard library only; `unittest`; bash shell tests; `claude`, `codex` (0.141) and `cursor-agent` (2026.08) CLIs for the live runs.
 
-**Spec:** [`specs/002-multi-agent/design.md`](./design.md) (commit `f0ac863`)
+**Spec:** [`specs/002-multi-agent/design.md`](./design.md) (commit `f0ac863`)  |  **Jira:** Epic CONTINUI-55, Stories CONTINUI-56..63
 
 ### Refinements to the spec (decided while planning)
 
@@ -81,7 +81,7 @@
 
 ---
 
-## Task 1: Live verification spike (V1–V5) and recorded payloads
+## Task 1 (CONTINUI-56): Live verification spike (V1–V5) and recorded payloads
 
 **Files:**
 - Create: `tests/fixtures/agents/{claude,codex,cursor}/*.json` (recorded, scrubbed)
@@ -165,12 +165,12 @@ print("{}")
 
 ```bash
 git add tests/fixtures/agents specs/002-multi-agent/verification.md
-git commit -m "test(CONTINUI-XX): record live Codex, Cursor and Claude Code hook payloads"
+git commit -m "test(CONTINUI-56): record live Codex, Cursor and Claude Code hook payloads"
 ```
 
 ---
 
-## Task 2: `lib/agents.py`
+## Task 2 (CONTINUI-57): `lib/agents.py`
 
 **Files:**
 - Create: `lib/agents.py`
@@ -525,12 +525,12 @@ Expected: every test `ok`. Then run `python3 tests/run_tests.py` and expect `OK`
 
 ```bash
 git add lib/agents.py tests/test_agents.py
-git commit -m "feat(lib): detect the coding agent and normalize its hook payloads (CONTINUI-XX)"
+git commit -m "feat(lib): detect the coding agent and normalize its hook payloads (CONTINUI-57)"
 ```
 
 ---
 
-## Task 3: Route the three hooks through `lib/agents.py`
+## Task 3 (CONTINUI-58): Route the three hooks through `lib/agents.py`
 
 **Files:**
 - Modify: `hooks/session-start.py` (`main`, imports)
@@ -743,12 +743,12 @@ test (Constitution III).
 
 ```bash
 git add hooks/session-start.py hooks/capture-trigger.py hooks/session-end.py tests/test_agent_hooks.py
-git commit -m "feat(hooks): accept Codex and Cursor hook payloads via lib/agents.py (CONTINUI-XX)"
+git commit -m "feat(hooks): accept Codex and Cursor hook payloads via lib/agents.py (CONTINUI-58)"
 ```
 
 ---
 
-## Task 4: Cursor hook config and per-agent manifests
+## Task 4 (CONTINUI-59): Cursor hook config and per-agent manifests
 
 **Files:**
 - Create: `hooks/cursor-hooks.json`, `.codex-plugin/plugin.json`, `.cursor-plugin/plugin.json`, `plugin.json`
@@ -885,12 +885,12 @@ Expected: all pass except `test_codex_manifest_points_at_skills`, which passes a
 
 ```bash
 git add hooks/cursor-hooks.json .codex-plugin .cursor-plugin plugin.json .claude-plugin/marketplace.json tests/test_agent_packaging.py
-git commit -m "feat(plugin): add Codex and Cursor manifests and Cursor hook config (CONTINUI-XX)"
+git commit -m "feat(plugin): add Codex and Cursor manifests and Cursor hook config (CONTINUI-59)"
 ```
 
 ---
 
-## Task 5: Checkpoint skill for Codex
+## Task 5 (CONTINUI-60): Checkpoint skill for Codex
 
 **Files:**
 - Create: `skills/continuity-checkpoint/SKILL.md`
@@ -961,12 +961,12 @@ Expected: all pass.
 
 ```bash
 git add skills/continuity-checkpoint/SKILL.md
-git commit -m "feat(skills): add the checkpoint skill for Codex, which loads skills not commands (CONTINUI-XX)"
+git commit -m "feat(skills): add the checkpoint skill for Codex, which loads skills not commands (CONTINUI-60)"
 ```
 
 ---
 
-## Task 6: Docs and the constitution amendment
+## Task 6 (CONTINUI-61): Docs and the constitution amendment
 
 **Files:**
 - Modify: `docs/install.md`, `README.md`, `CLAUDE.md`, `.specify/memory/constitution.md`
@@ -1048,12 +1048,12 @@ say so in the commit body.
 
 ```bash
 git add docs/install.md README.md CLAUDE.md .specify/memory/constitution.md
-git commit -m "docs: install per coding agent, Desktop unsupported, constitution 1.1.0 (CONTINUI-XX)"
+git commit -m "docs: install per coding agent, Desktop unsupported, constitution 1.1.0 (CONTINUI-61)"
 ```
 
 ---
 
-## Task 7: Live quickstart in each agent
+## Task 7 (CONTINUI-62): Live quickstart in each agent
 
 **Files:**
 - Create: `specs/002-multi-agent/live-results.md`
@@ -1084,12 +1084,12 @@ git commit -m "docs: install per coding agent, Desktop unsupported, constitution
 
 ```bash
 git add specs/002-multi-agent/live-results.md
-git commit -m "test(CONTINUI-XX): live quickstart results for Claude Code, Codex and Cursor"
+git commit -m "test(CONTINUI-62): live quickstart results for Claude Code, Codex and Cursor"
 ```
 
 ---
 
-## Task 8: Release v0.2.0
+## Task 8 (CONTINUI-63): Release v0.2.0
 
 - [ ] **Step 1: Bump versions together.** Set `"version": "0.2.0"` in all four
   manifests, and `"plugin_version": "0.2.0"` in `templates/metadata.json.tmpl`.
