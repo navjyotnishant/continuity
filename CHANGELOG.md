@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A durable file overwritten with text that has neither a title nor any entry
   is now logged as `corrupted` in `errors.log`, instead of being read silently
   as empty. (CONTINUI-51)
+- A newly created store records the installed plugin's version in
+  `metadata.json` instead of a hardcoded `0.1.0`. (CONTINUI-52)
 
 ## [0.1.1] - 2026-09-27
 

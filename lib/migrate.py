@@ -35,6 +35,7 @@ CURRENT_SCHEMA_VERSION = "1.0"
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATES_DIR = os.path.join(_REPO_ROOT, "templates")
 METADATA_TEMPLATE_PATH = os.path.join(TEMPLATES_DIR, "metadata.json.tmpl")
+PLUGIN_MANIFEST_PATH = os.path.join(_REPO_ROOT, ".claude-plugin", "plugin.json")
 
 # The durable files a store is made of, beside `metadata.json`.
 SEED_FILES = ("state.md", "decisions.md", "tasks.md", "learnings.md")
@@ -78,6 +79,20 @@ def _major(version):
 
 def _serialize(metadata):
     return json.dumps(metadata, indent=2) + "\n"
+
+
+def _plugin_version():
+    """Return the manifest's version, or None to keep the template's value.
+
+    CONTINUI-52: read at seed time so a release bump cannot leave the
+    template recording a stale version.
+    """
+    try:
+        with open(PLUGIN_MANIFEST_PATH, "r", encoding="utf-8") as handle:
+            version = json.load(handle).get("version")
+    except (OSError, ValueError, AttributeError):
+        return None
+    return version if isinstance(version, str) and version else None
 
 
 def metadata_ensure(continuity_dir_path):
@@ -127,6 +142,9 @@ def metadata_ensure(continuity_dir_path):
 
     metadata["schema_version"] = CURRENT_SCHEMA_VERSION
     metadata["created_at"] = _utc_now()
+    version = _plugin_version()
+    if version:
+        metadata["plugin_version"] = version
 
     try:
         os.makedirs(continuity_dir_path, exist_ok=True)

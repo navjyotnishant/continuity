@@ -753,8 +753,10 @@ class TestNewMetadataFieldsFromTemplate(unittest.TestCase):
             metadata = _read_json(os.path.join(continuity_dir, "metadata.json"))
 
             # Every template field not owned by code must pass through as-is.
+            # plugin_version is code-owned too since CONTINUI-52 (read from
+            # the manifest).
             for key, value in template_content.items():
-                if key in ("schema_version", "created_at"):
+                if key in ("schema_version", "created_at", "plugin_version"):
                     continue
                 self.assertIn(key, metadata)
                 self.assertEqual(metadata[key], value)
@@ -797,3 +799,24 @@ class TestModuleExitsClean(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestSeededPluginVersionMatchesManifest(unittest.TestCase):
+    """CONTINUI-52: the template hardcoded 0.1.0 and the v0.1.1 bump missed it."""
+
+    def test_new_store_records_the_manifest_version(self):
+        with open(os.path.join(REPO_ROOT, ".claude-plugin", "plugin.json"), encoding="utf-8") as handle:
+            manifest_version = json.load(handle)["version"]
+        with tempfile.TemporaryDirectory() as tmp:
+            store = os.path.join(tmp, ".continuity")
+            self.assertTrue(migrate.metadata_ensure(store))
+            with open(os.path.join(store, "metadata.json"), encoding="utf-8") as handle:
+                self.assertEqual(json.load(handle)["plugin_version"], manifest_version)
+
+    def test_unreadable_manifest_falls_back_to_the_template_value(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = os.path.join(tmp, ".continuity")
+            with mock.patch.object(migrate, "PLUGIN_MANIFEST_PATH", os.path.join(tmp, "missing.json")):
+                self.assertTrue(migrate.metadata_ensure(store))
+            with open(os.path.join(store, "metadata.json"), encoding="utf-8") as handle:
+                self.assertIn("plugin_version", json.load(handle))
