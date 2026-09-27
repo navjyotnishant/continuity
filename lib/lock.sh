@@ -32,9 +32,12 @@ _LOCK_STALE_SECONDS=10
 _LOCK_DEFAULT_TIMEOUT=5
 
 # Modification time in epoch seconds. BSD (macOS) and GNU stat disagree on the
-# flag, so try both rather than depending on one userland.
+# flag, so try both rather than depending on one userland. GNU goes first: BSD
+# rejects `-c` without writing to stdout, but GNU reads `-f` as "filesystem
+# status" and prints that to stdout before failing, which corrupted the value
+# and meant a stale lock was never broken on Linux (CONTINUI-54).
 _lock_mtime() {
-	stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null
+	stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null
 }
 
 # 0 if the lock looks abandoned. A lock whose age cannot be read is NOT stale:
