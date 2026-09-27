@@ -21,6 +21,7 @@ import sys
 import tempfile
 import time
 import unittest
+from datetime import datetime, timezone
 
 REPO_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 sys.path.insert(0, REPO_ROOT)
@@ -150,6 +151,43 @@ class TestWriteMemory(unittest.TestCase):
 
             self.assertEqual(sessions_files(tmp), [])
             self.assertEqual(sorted(os.listdir(store)), [".staged"])
+
+    def test_a_successful_run_prunes_handoffs_past_the_retention_window(self):
+        """T032 — retention rides the writer, so no run of its own is needed."""
+        with tempfile.TemporaryDirectory() as tmp:
+            sessions = os.path.join(tmp, ".continuity", "sessions")
+            os.makedirs(sessions)
+            stale = os.path.join(sessions, "20200101T000000Z-4242.md")
+            recent = os.path.join(
+                sessions,
+                datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-4243.md",
+            )
+            for path in (stale, recent):
+                with open(path, "w", encoding="utf-8", newline="\n") as handle:
+                    handle.write("```\ncaptured_at: x\ntrigger: file-change\n```\n\nOld.\n")
+            stage(tmp, "decision", "# Kept\n\nBody.\n")
+
+            handoff_path = write_memory(tmp, "file-change")
+
+            self.assertFalse(os.path.exists(stale), "an aged-out handoff must be pruned")
+            self.assertTrue(os.path.exists(recent), "a handoff inside the window stays")
+            self.assertTrue(os.path.exists(handoff_path), "this run's handoff stays")
+            self.assertIn("Kept", read(os.path.join(tmp, ".continuity", "decisions.md")))
+
+    def test_a_skipped_store_is_never_pruned(self):
+        """Nothing staged means no write of any kind — including a delete."""
+        with tempfile.TemporaryDirectory() as tmp:
+            store = os.path.join(tmp, ".continuity")
+            os.makedirs(staged_dir(store))
+            sessions = os.path.join(store, "sessions")
+            os.makedirs(sessions)
+            stale = os.path.join(sessions, "20200101T000000Z-4242.md")
+            with open(stale, "w", encoding="utf-8", newline="\n") as handle:
+                handle.write("Old.\n")
+
+            self.assertIsNone(write_memory(tmp, "session-end"))
+
+            self.assertTrue(os.path.exists(stale))
 
     def test_secret_line_is_dropped_and_logged_without_losing_the_entry(self):
         with tempfile.TemporaryDirectory() as tmp:
