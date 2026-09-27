@@ -187,10 +187,16 @@ def main():
         from lib import agents
 
         payloads = agents.normalize(parsed, os.environ)
-    except Exception:  # fail open; never raise out of a hook (agents.py may
-        # be absent from a partial/fake plugin install) — treat the payload
+    except Exception as error:  # fail open; never raise out of a hook (agents.py
+        # may be absent from a partial/fake plugin install) — treat the payload
         # as already Claude-shaped, same as agents.normalize does for Claude.
         payloads = [parsed]
+        fallback_cwd = parsed.get("cwd")
+        fallback_cwd = fallback_cwd if isinstance(fallback_cwd, str) and fallback_cwd else os.getcwd()
+        try:
+            _log(fallback_cwd, "payload-shape", type(error).__name__)
+        except Exception:
+            pass
 
     launches = []
     for payload in payloads:

@@ -12,6 +12,8 @@ from unittest import mock
 REPO_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 sys.path.insert(0, REPO_ROOT)
 
+from lib import agents  # noqa: E402  the same module object every hook's lazy import binds to
+
 
 def load_hook(name):
     spec = importlib.util.spec_from_file_location(name.replace("-", "_"), os.path.join(REPO_ROOT, "hooks", name + ".py"))
@@ -67,12 +69,43 @@ class TestCaptureTriggerAcrossAgents(unittest.TestCase):
         launch.assert_not_called()
         log.assert_not_called()
 
+    def test_normalize_failure_logs_payload_shape_and_keeps_claude_behaviour(self):
+        # Fix round 1: a real bug in lib/agents.py must leave a trail, not
+        # degrade silently, while Claude Code behaviour is preserved by the
+        # [parsed]-fallback.
+        with tempfile.TemporaryDirectory() as root:
+            payload = {"tool_name": "Write", "cwd": root, "tool_input": {"content": "x"}}
+            with mock.patch.object(agents, "normalize", side_effect=ValueError("boom")), \
+                    mock.patch.object(capture_trigger, "launch_writer") as launch:
+                code, _ = run_main(capture_trigger, payload)
+            self.assertEqual(code, 0)
+            launch.assert_called_once_with(root, "file-change")
+            errors_log = os.path.join(root, ".continuity", "errors.log")
+            with open(errors_log, encoding="utf-8") as handle:
+                contents = handle.read()
+            self.assertIn("payload-shape", contents)
+            self.assertIn("ValueError", contents)
+
 
 class TestSessionEndAcrossAgents(unittest.TestCase):
     def test_cursor_session_end_flushes_the_project(self):
         with mock.patch.object(session_end, "launch_writer") as launch:
             run_main(session_end, {"hook_event_name": "sessionEnd"}, {"CURSOR_PROJECT_DIR": "/work/repo"})
         launch.assert_called_once_with("/work/repo")
+
+    def test_normalize_failure_logs_payload_shape_and_keeps_claude_behaviour(self):
+        with tempfile.TemporaryDirectory() as root:
+            payload = {"cwd": root}
+            with mock.patch.object(agents, "normalize", side_effect=ValueError("boom")), \
+                    mock.patch.object(session_end, "launch_writer") as launch:
+                code, _ = run_main(session_end, payload)
+            self.assertEqual(code, 0)
+            launch.assert_called_once_with(root)
+            errors_log = os.path.join(root, ".continuity", "errors.log")
+            with open(errors_log, encoding="utf-8") as handle:
+                contents = handle.read()
+            self.assertIn("payload-shape", contents)
+            self.assertIn("ValueError", contents)
 
 
 class TestSessionStartAcrossAgents(unittest.TestCase):
