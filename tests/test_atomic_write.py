@@ -123,9 +123,13 @@ class TestAtomicWrite(unittest.TestCase):
         # not just "looks the same". atomic_write opens the temp file in
         # text mode with newline="\n", so a bare \n survives unchanged and
         # an embedded \r is written as data, not translated.
+        #
+        # Path.read_text() only gained a `newline` kwarg in Python 3.13
+        # (CONTINUI-47); this project targets 3.9+, so read raw bytes and
+        # decode instead — equivalent for this check, and portable.
         content = "line one\r\nline two\ttabbed\nno trailing newline at all"
         atomic_write(str(self.target), content)
-        self.assertEqual(self.target.read_text(newline=""), content)
+        self.assertEqual(self.target.read_bytes().decode("utf-8"), content)
 
     def test_concurrent_writes_each_use_their_own_pid_tmp_file(self):
         # If the temp filename were reused across concurrent calls rather

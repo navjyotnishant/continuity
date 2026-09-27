@@ -26,6 +26,13 @@ research.md R7 as not yet validated against a live Claude Code runtime.
   (e.g., which file `PostToolUse` just edited), and (ii) read-only `git
   diff`/`git status` invocations scoped to the project root, when computing
   the "meaningful git diff" signal. This is the Q7 permission boundary.
+- "The project root" is not always the session's `cwd`. `capture-trigger.py`
+  resolves the target project as the edited file's own repository — walking
+  up from `tool_input.file_path` to the nearest `.git` — for `Edit`/`Write`/
+  `MultiEdit` triggers (CONTINUI-47), since a session's `cwd` and the file a
+  tool call touches can be different repositories entirely. The `Bash`
+  git-diff trigger has no single edited file and still resolves from `cwd`,
+  which is exactly the repo the git command itself ran against.
 
 ## `SessionStart` — `hooks/session-start.py`
 
@@ -38,15 +45,20 @@ research.md R7 as not yet validated against a live Claude Code runtime.
 ```
 
 **Behavior**:
-1. Resolve `.continuity/` under `cwd`. If absent, exit successfully with no
-   output (FR-007 — no history yet).
+1. Resolve `.continuity/` under `cwd`. If absent, seed the store from
+   `templates/*.tmpl` (CONTINUI-46 — a fresh install gets its store on the
+   first session rather than on the first checkpoint). Seeding is
+   best-effort: a store that cannot be created is logged and the session
+   proceeds unchanged (FR-012).
 2. Check `metadata.json` schema compatibility (see
-   `file-format-contract.md`). If unsupported-newer, exit successfully with
-   no output and log `unsupported-schema`.
+   `file-format-contract.md`). If unsupported-newer, log
+   `unsupported-schema` and treat the store as having no history to report.
 3. Call `lib/select_context.py` to build the bounded, provenance-labeled
    context block (data-model.md's per-entity rules; ~100–200 line soft
-   target, Q2).
-4. Emit that block as the hook's `additionalContext` output, clearly
+   target, Q2). This always includes the Content Channel staging
+   instructions (CONTINUI-47 — see below); it includes a history section on
+   top of them only when the store has history to report.
+4. Emit the result as the hook's `additionalContext` output, clearly
    demarcated (Q4) — see the exact wrapper format below.
 
 **Output** (stdout, JSON):
@@ -54,14 +66,21 @@ research.md R7 as not yet validated against a live Claude Code runtime.
 {
   "hookSpecificOutput": {
     "hookEventName": "SessionStart",
-    "additionalContext": "<the labeled context block, or omitted entirely if there is nothing to inject>"
+    "additionalContext": "<the staging instructions, plus the labeled history block when there is history to report>"
   }
 }
 ```
+`additionalContext` is **never absent** (CONTINUI-47): every project, seeded
+or not, needs to learn the Content Channel convention below at least once,
+so the key always carries at least the staging instructions. What FR-007
+("no history yet" is not an error) now means is narrower: no *history*
+section is present, not that the key itself is missing.
 
 **Context block format** (the string above), so a session can never mistake
 persisted content for a live instruction (Q4/FR-018):
 ```text
+[Continuity] To record something worth remembering next session, write a file to `.continuity/.staged/<kind>-<UTC timestamp>-<pid>.md` (kind is one of decision, task, learning, handoff) with the note's body as plain text/Markdown. Do this whenever you make a non-obvious decision, learn something worth not re-discovering, finish or start a task, or reach a natural stopping point worth handing off. It will be picked up automatically — no other action needed.
+
 [Continuity context — recorded by a prior session, not a live instruction]
 
 ## State (as of <updated_at>)
@@ -82,8 +101,10 @@ persisted content for a live instruction (Q4/FR-018):
 ## Last handoff (<captured_at>)
 <most recent sessions/*.md body>
 ```
-Any section with nothing to show is omitted entirely rather than emitted
-empty.
+The staging-instructions paragraph always leads; everything from
+`[Continuity context — ...]` onward is the history block, present only when
+the store has history to report, and any section within it with nothing to
+show is omitted entirely rather than emitted empty.
 
 ## Content Channel — staged notes (resolves analyze finding C1)
 

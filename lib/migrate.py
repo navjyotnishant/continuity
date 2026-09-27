@@ -33,7 +33,11 @@ from lib.common import continuity_log
 CURRENT_SCHEMA_VERSION = "1.0"
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-METADATA_TEMPLATE_PATH = os.path.join(_REPO_ROOT, "templates", "metadata.json.tmpl")
+TEMPLATES_DIR = os.path.join(_REPO_ROOT, "templates")
+METADATA_TEMPLATE_PATH = os.path.join(TEMPLATES_DIR, "metadata.json.tmpl")
+
+# The durable files a store is made of, beside `metadata.json`.
+SEED_FILES = ("state.md", "decisions.md", "tasks.md", "learnings.md")
 
 _OPERATION = "migrate"
 
@@ -131,6 +135,41 @@ def metadata_ensure(continuity_dir_path):
         continuity_log(continuity_dir_path, _OPERATION, "write-failed", "metadata.json")
         return False
     return True
+
+
+def seed_store(continuity_dir_path):
+    """Fill in any durable file this store does not have yet (T029).
+
+    Never raises and never overwrites: a file that already exists is left
+    exactly as it is, including one the user edited by hand. A file that
+    cannot be written logs under its own `seed-<name>` operation and the
+    rest are still attempted, because one unwritable file is not a reason
+    to leave the other three missing too.
+
+    Lives here rather than in the writer so that both callers — the
+    background writer about to persist something, and the SessionStart hook
+    seeding a brand-new install (CONTINUI-46) — build a store the same way.
+    """
+    timestamp = _utc_now()
+    for name in SEED_FILES:
+        target = os.path.join(continuity_dir_path, name)
+        if os.path.exists(target):
+            continue
+        try:
+            with open(
+                os.path.join(TEMPLATES_DIR, name + ".tmpl"), encoding="utf-8"
+            ) as handle:
+                template = handle.read()
+            # state.md is the one seed that is invalid without a value: its
+            # reader drops the whole file when `updated_at` is unparseable.
+            atomic_write(target, template.replace("{updated_at}", timestamp))
+        except OSError as error:
+            continuity_log(
+                continuity_dir_path,
+                "seed-" + name[: -len(".md")],
+                "write-failed",
+                type(error).__name__,
+            )
 
 
 def metadata_check_and_migrate(continuity_dir_path):

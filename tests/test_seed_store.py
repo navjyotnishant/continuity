@@ -24,7 +24,7 @@ import unittest
 REPO_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 sys.path.insert(0, REPO_ROOT)
 
-from lib.select_context import _entries, _read_state
+from lib.select_context import STAGING_INSTRUCTIONS, _entries, _read_state
 from lib.write_memory import SEED_FILES, write_memory
 
 SESSION_START_HOOK = os.path.join(REPO_ROOT, "hooks", "session-start.py")
@@ -84,14 +84,17 @@ class TestSessionStartWithNoStore(unittest.TestCase):
                 output["hookSpecificOutput"]["hookEventName"], "SessionStart"
             )
 
-    def test_session_injects_no_context_when_store_missing(self):
+    def test_session_injects_no_history_when_store_missing(self):
         with tempfile.TemporaryDirectory() as tmp:
             _, output = run_session_start(tmp)
 
-            self.assertNotIn(
-                "additionalContext", output.get("hookSpecificOutput", {})
+            self.assertEqual(
+                output["hookSpecificOutput"]["additionalContext"],
+                STAGING_INSTRUCTIONS + "\n",
             )
-            self.assertEqual(session_start.build_context(tmp), "")
+            self.assertEqual(
+                session_start.build_context(tmp), STAGING_INSTRUCTIONS + "\n"
+            )
 
 
 class TestWriteSeedsAllFourFiles(unittest.TestCase):
@@ -195,8 +198,9 @@ class TestPartialStore(unittest.TestCase):
             self.assertEqual(
                 output["hookSpecificOutput"]["hookEventName"], "SessionStart"
             )
-            self.assertNotIn(
-                "additionalContext", output.get("hookSpecificOutput", {})
+            self.assertEqual(
+                output["hookSpecificOutput"]["additionalContext"],
+                STAGING_INSTRUCTIONS + "\n",
             )
             self.assertFalse(
                 os.path.exists(os.path.join(store, "errors.log")),
