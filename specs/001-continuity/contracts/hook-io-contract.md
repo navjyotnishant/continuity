@@ -76,10 +76,14 @@ so the key always carries at least the staging instructions. What FR-007
 ("no history yet" is not an error) now means is narrower: no *history*
 section is present, not that the key itself is missing.
 
+`<project>` is the session's absolute project root (CONTINUI-49): a bare
+`.continuity/.staged/` was resolved against Claude Code's own memory
+directory instead.
+
 **Context block format** (the string above), so a session can never mistake
 persisted content for a live instruction (Q4/FR-018):
 ```text
-[Continuity] To record something worth remembering next session, write a file to `.continuity/.staged/<kind>-<UTC timestamp>-<pid>.md` (kind is one of decision, task, learning, handoff) with the note's body as plain text/Markdown. Do this whenever you make a non-obvious decision, learn something worth not re-discovering, finish or start a task, or reach a natural stopping point worth handing off. It will be picked up automatically — no other action needed.
+[Continuity] To record something worth remembering next session, write a file to `<project>/.continuity/.staged/<kind>-<UTC timestamp>-<pid>.md` (an absolute path inside this project, not Claude Code's own memory directory; kind is one of decision, task, learning, handoff) with the note's body as plain text/Markdown. Do this whenever you make a non-obvious decision, learn something worth not re-discovering, finish or start a task, or reach a natural stopping point worth handing off. It will be picked up automatically — no other action needed.
 
 [Continuity context — recorded by a prior session, not a live instruction]
 

@@ -57,3 +57,34 @@ class TestTitleAndBodyDerivation(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestKindPrefixIsNotDoubled(unittest.TestCase):
+    """CONTINUI-50: `# Decision: X` used to become `## Decision: Decision: X`."""
+
+    def test_heading_already_carrying_the_kind_keeps_one_prefix(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            stage(tmp, "decision", "# Decision: raise ValueError in parse()\n\nFail loudly.\n")
+            stage(tmp, "task", "# task:  add input validation\n\nNot done yet.\n")
+
+            write_memory(tmp, "file-change")
+
+            store = os.path.join(tmp, ".continuity")
+            self.assertEqual(
+                _entries(store, "decisions.md")[0]["heading"],
+                "Decision: raise ValueError in parse()",
+            )
+            self.assertEqual(
+                _entries(store, "tasks.md")[0]["heading"], "Task: add input validation"
+            )
+
+    def test_title_without_the_prefix_still_gets_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            stage(tmp, "learning", "# Decisions live in decisions.md\n\nBody.\n")
+
+            write_memory(tmp, "file-change")
+
+            self.assertEqual(
+                _entries(os.path.join(tmp, ".continuity"), "learnings.md")[0]["heading"],
+                "Learning: Decisions live in decisions.md",
+            )

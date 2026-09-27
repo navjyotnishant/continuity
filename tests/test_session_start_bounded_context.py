@@ -21,7 +21,7 @@ import unittest
 REPO_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 sys.path.insert(0, REPO_ROOT)
 
-from lib.select_context import LABEL, MAX_BYTES, MAX_LINES, STAGING_INSTRUCTIONS
+from lib.select_context import LABEL, MAX_BYTES, MAX_LINES, staging_instructions
 
 SESSION_START_HOOK = os.path.join(REPO_ROOT, "hooks", "session-start.py")
 
@@ -115,7 +115,7 @@ class TestBoundedContextLoadsAtSessionStart(unittest.TestCase):
             payload = json.loads(result.stdout)
             context = payload["hookSpecificOutput"]["additionalContext"]
 
-            self.assertTrue(context.startswith(STAGING_INSTRUCTIONS))
+            self.assertTrue(context.startswith(staging_instructions(os.path.join(tmp, ".continuity"))))
             self.assertIn(LABEL, context)
             self.assertLessEqual(len(context.splitlines()), MAX_LINES)
             self.assertLessEqual(len(context.encode("utf-8")), MAX_BYTES)

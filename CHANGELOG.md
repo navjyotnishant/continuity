@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-09-27
+
+### Fixed
+
+- The plugin no longer reports "failed to load". Its manifest named
+  `hooks/hooks.json`, which Claude Code already loads automatically, so the
+  hooks were registered twice. (CONTINUI-48)
+- SessionStart's recording instructions and `/continuity-checkpoint` now give
+  the project's absolute `.continuity/.staged/` path. The bare relative path
+  could be resolved against Claude Code's own memory directory instead, and
+  notes never reached the project store. (CONTINUI-49)
+- Entry titles no longer repeat their kind: a note headed
+  `# Decision: X` is recorded as `Decision: X`, not
+  `Decision: Decision: X`. (CONTINUI-50)
+- A durable file overwritten with text that has neither a title nor any entry
+  is now logged as `corrupted` in `errors.log`, instead of being read silently
+  as empty. (CONTINUI-51)
+- A newly created store records the installed plugin's version in
+  `metadata.json` instead of a hardcoded `0.1.0`. (CONTINUI-52)
+- `docs/install.md` names the secret scanner's real file,
+  `lib/secret_scan.py`. (CONTINUI-53)
+
 ## [0.1.1] - 2026-09-27
 
 ### Fixed
@@ -46,7 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a durable file.
 - Retention pruning for old session-handoff files and stale lock/temp debris.
 
-[Unreleased]: https://github.com/navjyotnishant/continuity/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/navjyotnishant/continuity/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/navjyotnishant/continuity/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/navjyotnishant/continuity/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/navjyotnishant/continuity/releases/tag/v0.1.0
-</content>

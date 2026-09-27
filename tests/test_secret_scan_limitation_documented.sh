@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Covers docs/install.md's secret-scan disclaimer (T036, plan.md's Risks):
-# the docs must state plainly that lib/secret_scan.sh can have false
+# the docs must state plainly that lib/secret_scan.py can have false
 # negatives and is a mitigation, not a guarantee — so nobody reads the scan
 # as a substitute for their own judgment about what gets persisted.
 set -u

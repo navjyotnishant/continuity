@@ -113,7 +113,7 @@ class TestNoAdditionalContextWhenStoreCreationFails(unittest.TestCase):
             output = json.loads(result.stdout)
             self.assertEqual(
                 output["hookSpecificOutput"]["additionalContext"],
-                select_context.STAGING_INSTRUCTIONS + "\n",
+                select_context.staging_instructions(os.path.join(tmp, ".continuity")) + "\n",
             )
 
     @unittest.skipUnless(PERMISSIONS_ENFORCED, "chmod is not enforced here")
@@ -131,7 +131,7 @@ class TestNoAdditionalContextWhenStoreCreationFails(unittest.TestCase):
             output = json.loads(result.stdout)
             self.assertEqual(
                 output["hookSpecificOutput"]["additionalContext"],
-                select_context.STAGING_INSTRUCTIONS + "\n",
+                select_context.staging_instructions(os.path.join(project, ".continuity")) + "\n",
             )
 
 

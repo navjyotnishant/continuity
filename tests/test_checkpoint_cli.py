@@ -1,7 +1,7 @@
 """tests/test_checkpoint_cli.py — /continuity-checkpoint's synchronous CLI contract.
 
 commands/continuity-checkpoint.md Step 2/3: the command runs
-`python3 lib/write_memory.py "$CLAUDE_PROJECT_DIR" explicit-checkpoint`
+`python3 lib/write_memory.py "<project root>" explicit-checkpoint`
 synchronously (there is no detach — the user asked for this and is
 waiting) and relays the writer's own one-line result unchanged. Step 2 is
 never skipped by a Step 1 that staged nothing: the writer always runs and
