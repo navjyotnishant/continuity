@@ -22,6 +22,17 @@
    which would misroute Claude Code's own hooks. Cursor payloads name their event in
    camelCase (`sessionStart`), and Claude Code and Codex use PascalCase
    (`SessionStart`). Detection keys on that.
+3. **The plugin moves to `plugins/continuity/`** (added after Task 1, user decision).
+   Codex silently ignores a marketplace plugin whose source is the repo root, in every
+   form, and installs symlinked folders empty (verification.md → V3). Task 1b does the
+   move. **From Task 2 on, every path is relative to `plugins/continuity/`** (the
+   plugin root), except these repo-root files: `.claude-plugin/marketplace.json`,
+   `docs/`, `specs/`, `README.md`, `CLAUDE.md`, `CHANGELOG.md`, `LICENSE`, `.specify/`
+   and `.github/`.
+4. **Codex fixtures are hand-built** from Codex's docs and the evidence in
+   verification.md, each marked `"_source": "unverified: built from docs"`, because
+   no live Codex session was possible (Task 1). The live Codex run in Task 7 replaces
+   them, after the user updates Codex and trusts the hooks.
 
 ## Global Constraints
 
@@ -49,6 +60,11 @@
    `workspace_roots[0]`, then to the process cwd, and never crash. Test in Task 2.
 5. **A Cursor event Continuity does not map** (e.g. a user adds `stop` to the config).
    It is a silent no-op with exit 0, not an error. Tests in Tasks 2 and 3.
+6. **Hook code reading the plugin root from the environment.** Cursor runs hooks
+   through a shared, long-lived worker whose environment can belong to another plugin
+   (verification.md → Fix round 1). Hooks and `lib/` must locate files from
+   `__file__`, never from `CLAUDE_PLUGIN_ROOT`/`CURSOR_PLUGIN_ROOT`. The final review
+   checks this.
 
 ---
 
@@ -166,6 +182,121 @@ print("{}")
 ```bash
 git add tests/fixtures/agents specs/002-multi-agent/verification.md
 git commit -m "test(CONTINUI-56): record live Codex, Cursor and Claude Code hook payloads"
+```
+
+---
+
+## Task 1b (CONTINUI-59): Move the plugin into `plugins/continuity/`
+
+**Files:**
+- Move (`git mv`): `.claude-plugin/plugin.json`, `hooks/`, `lib/`, `commands/`,
+  `templates/`, `tests/` → `plugins/continuity/<same path>`
+- Keep at repo root: `.claude-plugin/marketplace.json`, `docs/`, `specs/`,
+  `README.md`, `CLAUDE.md`, `CHANGELOG.md`, `LICENSE`, `.specify/`, `.github/`, `.gitignore`
+- Modify: `.claude-plugin/marketplace.json` (source), `.github/workflows/tests.yml`,
+  `CLAUDE.md`, `docs/install.md` (paths only), any test that reads a repo-root file
+- Test: `plugins/continuity/tests/test_layout.py` (new)
+
+**Interfaces:**
+- Produces: the plugin root `plugins/continuity/`, which every later task's paths are
+  relative to. `PROJECT_ROOT` = repo root = plugin root `/../..`.
+
+- [ ] **Step 1: Write the failing test** at `tests/test_layout.py` (before the move,
+  so it moves with the rest):
+
+```python
+"""tests/test_layout.py — the plugin lives in plugins/continuity/ (CONTINUI-59).
+
+Codex ignores a marketplace plugin whose source is the repo root, so the
+marketplace at the repo root points at this subfolder.
+"""
+
+import json
+import os
+import unittest
+
+PLUGIN_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+PROJECT_ROOT = os.path.abspath(os.path.join(PLUGIN_ROOT, "..", ".."))
+
+
+class TestLayout(unittest.TestCase):
+    def test_marketplace_points_at_the_plugin_subfolder(self):
+        with open(os.path.join(PROJECT_ROOT, ".claude-plugin", "marketplace.json"), encoding="utf-8") as handle:
+            marketplace = json.load(handle)
+        entry = [p for p in marketplace["plugins"] if p["name"] == "continuity"][0]
+        self.assertEqual(entry["source"], "./plugins/continuity")
+        target = os.path.normpath(os.path.join(PROJECT_ROOT, entry["source"]))
+        self.assertEqual(target, PLUGIN_ROOT)
+
+    def test_plugin_root_has_its_manifest_and_hooks(self):
+        for rel in (".claude-plugin/plugin.json", "hooks/hooks.json", "lib/write_memory.py"):
+            self.assertTrue(os.path.isfile(os.path.join(PLUGIN_ROOT, rel)), rel)
+
+    def test_no_symlinks_in_the_plugin(self):
+        # Codex installs symlinked entries as nothing (verification.md, V3).
+        for directory, dirs, files in os.walk(PLUGIN_ROOT):
+            for name in dirs + files:
+                self.assertFalse(os.path.islink(os.path.join(directory, name)), os.path.join(directory, name))
+
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+- [ ] **Step 2: Run it and confirm it fails**
+
+Run: `python3 -m unittest tests.test_layout -v` (from the repo root, before the move)
+Expected: FAIL: `PROJECT_ROOT` resolves two levels above the repo, so
+`marketplace.json` is not found (or the source is `"./"`).
+
+- [ ] **Step 3: Move**
+
+```bash
+mkdir -p plugins/continuity/.claude-plugin
+git mv .claude-plugin/plugin.json plugins/continuity/.claude-plugin/plugin.json
+git mv hooks lib commands templates tests plugins/continuity/
+```
+
+  Set `.claude-plugin/marketplace.json`'s continuity entry to `"source": "./plugins/continuity"`.
+
+- [ ] **Step 4: Repair references to repo-root files.** Run both suites from the
+  plugin root. Every failure should be a path to a repo-root file (`docs/`,
+  `.claude-plugin/marketplace.json`, `CHANGELOG.md`, `LICENSE`, `.github/`). Fix
+  each one by resolving it from `PROJECT_ROOT` (plugin root `/../..`). In
+  `tests/run_tests.sh`, export `PROJECT_ROOT="$(cd "$REPO_ROOT/../.." && pwd)"`
+  next to `REPO_ROOT`. **Change paths only. Never weaken or delete an assertion**
+  (Constitution III). The one exception is `tests/test_structure*.sh`: they assert
+  the plugin tree's own directories, so drop `docs` from their plugin-directory
+  lists and add one check that `$PROJECT_ROOT/docs` exists. Record each changed
+  test in the report.
+
+- [ ] **Step 5: Point everything else at the new root**
+  - `.github/workflows/tests.yml`: add `working-directory: plugins/continuity` to
+    both test steps.
+  - `CLAUDE.md` Build & test block: `cd plugins/continuity` before the two
+    commands. Update the Layout block to show `plugins/continuity/` holding
+    `.claude-plugin/plugin.json`, `hooks/`, `commands/`, `lib/`, `templates/`
+    and `tests/`, with `.claude-plugin/marketplace.json`, `docs/` and `specs/` at
+    the root.
+  - `docs/install.md`: any `lib/<file>` reference becomes
+    `plugins/continuity/lib/<file>`.
+
+- [ ] **Step 6: Verify**
+
+Run from `plugins/continuity/`: `python3 tests/run_tests.py` → `OK` (now including `test_layout`),
+and `bash tests/run_tests.sh` → `0 failed`.
+Run from the repo root: `claude plugin validate .` → `Validation passed`.
+Then one live load check (one Haiku session):
+`claude -p --model haiku --plugin-dir plugins/continuity --settings <scratch settings disabling installed continuity> --output-format stream-json --verbose "Reply OK" < /dev/null`
+Expected: the `init` event's `plugin_errors` has no `continuity@inline` entry, and a
+SessionStart `hook_response` contains `[Continuity]`.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add -A plugins/continuity .claude-plugin/marketplace.json .github/workflows/tests.yml CLAUDE.md docs/install.md
+git status --short   # must show only renames under plugins/continuity/ plus the listed files
+git commit -m "refactor(plugin): move the plugin into plugins/continuity/ so Codex can install it (CONTINUI-59)"
 ```
 
 ---

@@ -1,6 +1,6 @@
 # Design: Continuity on Claude Code, Codex and Cursor (multi-agent support)
 
-**Branch**: `feat/multi-agent` | **Date**: 2026-09-27 | **Status**: awaiting review
+**Branch**: `feat/multi-agent` | **Date**: 2026-09-27 | **Status**: approved; amended 2026-09-27 (subfolder layout, after the Task 1 spike)
 **Builds on**: [`specs/001-continuity`](../001-continuity/plan.md) (v0.1.2)
 
 ## Intent
@@ -122,10 +122,14 @@ Rules carried over unchanged to every agent:
 
 ## Packaging and distribution
 
-- **One marketplace.** `.claude-plugin/marketplace.json` already serves Claude Code,
-  and `njagents` shows Codex and Cursor install from the same file. Users add
-  `github.com/navjyotnishant/continuity` as a marketplace in any agent and install
-  `continuity`.
+- **One marketplace, plugin in a subfolder.** `.claude-plugin/marketplace.json` at
+  the repo root serves all three agents, as `njagents` does. The plugin itself lives
+  in `plugins/continuity/`, and the marketplace entry's `source` is
+  `"./plugins/continuity"`. Codex silently ignores a plugin sourced from the repo
+  root, and installs symlinked folders empty (found in the Task 1 spike; see
+  `verification.md`). Users add `github.com/navjyotnishant/continuity` as a
+  marketplace in any agent and install `continuity`. Every path in the Architecture
+  section is relative to `plugins/continuity/`.
 - **Four manifests, one version.** `.claude-plugin/plugin.json`,
   `.codex-plugin/plugin.json`, `.cursor-plugin/plugin.json` and the root `plugin.json`
   carry the same `name` and `version`. `lib/migrate.py` keeps reading the version from
