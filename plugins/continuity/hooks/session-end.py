@@ -70,7 +70,17 @@ def main():
     if not isinstance(parsed, dict):
         return 0
 
-    cwd = parsed.get("cwd")
+    try:
+        sys.path.insert(0, PLUGIN_ROOT)
+        from lib import agents
+
+        payloads = agents.normalize(parsed, os.environ)
+    except Exception:  # fail open; agents.py may be absent from a
+        # partial/fake plugin install — treat the payload as already
+        # Claude-shaped, same as agents.normalize does for Claude.
+        payloads = [parsed]
+    cwd = payloads[0].get("cwd") if payloads else None
+
     if not isinstance(cwd, str) or not cwd:
         return 0
 

@@ -20,6 +20,10 @@ edited file's path in `tool_input.file_path`; the `Bash` git-diff trigger has
 no single edited file, so it still resolves from `cwd`, which is exactly the
 repo the git command itself ran against.
 
+Codex and Cursor payloads are converted to this shape by `lib/agents.py`
+first; a Codex patch naming several files yields one writer per distinct
+repository.
+
 Standard library only (Python 3.9+) — no third-party imports, ever.
 """
 
@@ -178,18 +182,34 @@ def main():
     if not isinstance(parsed, dict):
         return 0
 
-    cwd = parsed.get("cwd")
-    if not isinstance(cwd, str) or not cwd:
-        return 0
-
     try:
-        trigger_kind = classify(parsed)
-    except Exception:
-        trigger_kind = None
+        sys.path.insert(0, PLUGIN_ROOT)
+        from lib import agents
 
-    if trigger_kind:
-        target = project_root_for(parsed)
-        launch_writer(target if isinstance(target, str) and target else cwd, trigger_kind)
+        payloads = agents.normalize(parsed, os.environ)
+    except Exception:  # fail open; never raise out of a hook (agents.py may
+        # be absent from a partial/fake plugin install) — treat the payload
+        # as already Claude-shaped, same as agents.normalize does for Claude.
+        payloads = [parsed]
+
+    launches = []
+    for payload in payloads:
+        cwd = payload.get("cwd")
+        if not isinstance(cwd, str) or not cwd:
+            continue
+        try:
+            trigger_kind = classify(payload)
+        except Exception:
+            trigger_kind = None
+        if not trigger_kind:
+            continue
+        target = project_root_for(payload)
+        target = target if isinstance(target, str) and target else cwd
+        if (target, trigger_kind) not in launches:
+            launches.append((target, trigger_kind))
+
+    for target, trigger_kind in launches:
+        launch_writer(target, trigger_kind)
     return 0
 
 

@@ -27,6 +27,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from lib import agents
 from lib.common import continuity_dir, continuity_log
 from lib.migrate import metadata_check_and_migrate, metadata_ensure, seed_store
 from lib.select_context import select_context, staging_instructions
@@ -75,7 +76,14 @@ def build_context(cwd):
 
 
 def main():
-    payload = read_payload()
+    raw_payload = read_payload()
+    agent = agents.detect_agent(raw_payload)
+    try:
+        normalized = agents.normalize(raw_payload, os.environ)
+    except Exception as error:  # fail open
+        continuity_log(continuity_dir(os.getcwd()), "session-start-load", "payload-shape", type(error).__name__)
+        normalized = []
+    payload = normalized[0] if normalized else {}
     cwd = payload.get("cwd")
     if not isinstance(cwd, str) or not cwd:
         cwd = os.getcwd()
@@ -88,10 +96,7 @@ def main():
         )
         context = staging_instructions(continuity_dir(cwd)) + "\n"
 
-    output = {"hookSpecificOutput": {"hookEventName": HOOK_EVENT_NAME}}
-    output["hookSpecificOutput"]["additionalContext"] = context
-
-    print(json.dumps(output))
+    print(agents.format_context(agent, HOOK_EVENT_NAME, context))
     return 0
 
 
