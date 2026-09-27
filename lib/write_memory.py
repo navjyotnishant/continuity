@@ -230,7 +230,11 @@ def _entry_text(kind, note, timestamp):
     if kind == "task":
         fields.append("status: " + DEFAULT_TASK_STATUS)
 
-    lines = ["## {}: {}".format(ENTRY_HEADING[kind], title), "", "```"]
+    label = ENTRY_HEADING[kind]
+    # CONTINUI-50: a note titled "Decision: X" must not become "Decision: Decision: X".
+    if title.lower().startswith(label.lower() + ":"):
+        title = title[len(label) + 1 :].strip() or "untitled"
+    lines = ["## {}: {}".format(label, title), "", "```"]
     lines.extend(fields)
     lines.extend(["```", ""])
     lines.extend(_demote_headings(body))

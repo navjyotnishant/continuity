@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the project's absolute `.continuity/.staged/` path. The bare relative path
   could be resolved against Claude Code's own memory directory instead, and
   notes never reached the project store. (CONTINUI-49)
+- Entry titles no longer repeat their kind: a note headed
+  `# Decision: X` is recorded as `Decision: X`, not
+  `Decision: Decision: X`. (CONTINUI-50)
 
 ## [0.1.1] - 2026-09-27
 
