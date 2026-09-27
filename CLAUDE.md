@@ -35,7 +35,8 @@ lives in `lib/` so each hook script stays a thin, fast dispatcher.
 No build step (interpreted Python, nothing to compile).
 
 ```bash
-python3 tests/run_tests.py
+python3 tests/run_tests.py   # unittest suite
+bash tests/run_tests.sh      # shell tests (manifest, docs, opt-out); CI runs both
 ```
 
 ## Conventions

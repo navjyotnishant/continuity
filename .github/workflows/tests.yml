@@ -25,3 +25,6 @@ jobs:
           python-version: "3.9"
       - name: run the suite
         run: python tests/run_tests.py
+      # The shell tests went unrun and rotted once already (CONTINUI-54).
+      - name: run the shell tests
+        run: bash tests/run_tests.sh

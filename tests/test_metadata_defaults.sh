@@ -26,10 +26,13 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FIXTURE_DIR="$(mktemp -d)"
 trap 'rm -rf "$FIXTURE_DIR"' EXIT
 
-# No .continuity/ present yet: first trigger must auto-create and seed it
-# (T029), producing metadata.json with the documented defaults.
-bash "$REPO_ROOT/lib/write_memory.sh" "$FIXTURE_DIR" explicit-checkpoint >/dev/null 2>&1
-assert_ok "$?" "write_memory.sh should succeed on first run against a project with no .continuity/"
+# No .continuity/ present yet: the first write with a staged note must
+# auto-create and seed it (T029), producing metadata.json with the documented
+# defaults. With nothing staged the writer creates nothing at all (FR-011).
+mkdir -p "$FIXTURE_DIR/.continuity/.staged"
+printf '# First note\n\nSeeds the store.\n' > "$FIXTURE_DIR/.continuity/.staged/learning-20260927T000000Z-1.md"
+python3 "$REPO_ROOT/lib/write_memory.py" "$FIXTURE_DIR" explicit-checkpoint >/dev/null 2>&1
+assert_ok "$?" "write_memory.py should succeed on first run against a project with no .continuity/"
 
 METADATA="$FIXTURE_DIR/.continuity/metadata.json"
 if [ ! -f "$METADATA" ]; then

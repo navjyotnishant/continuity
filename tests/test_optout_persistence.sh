@@ -40,9 +40,12 @@ git init -q
 git config user.email "test@example.com"
 git config user.name "Continuity Test"
 
-# Seed .continuity/ content the way capture-trigger.sh's detached writer
-# would, then commit it so the opt-out has something real to untrack.
-bash "$REPO_ROOT/lib/write_memory.sh" "$FIXTURE_DIR" explicit-checkpoint >/dev/null 2>&1
+# Seed .continuity/ content the way capture-trigger.py's detached writer
+# would, then commit it so the opt-out has something real to untrack. The
+# writer only seeds the store once something is staged (FR-011).
+mkdir -p .continuity/.staged
+printf '# Before opt-out\n\nTracked note.\n' > .continuity/.staged/learning-20260927T000000Z-1.md
+python3 "$REPO_ROOT/lib/write_memory.py" "$FIXTURE_DIR" explicit-checkpoint >/dev/null 2>&1
 git add .continuity 2>/dev/null
 git commit -q -m "seed .continuity" 2>/dev/null
 
@@ -59,10 +62,14 @@ fi
 
 # Expected outcome: Continuity still creates/reads/writes .continuity/ on
 # disk exactly as before the opt-out — the opt-out is purely git's business.
-bash "$REPO_ROOT/lib/write_memory.sh" "$FIXTURE_DIR" explicit-checkpoint >/dev/null 2>&1
-assert_ok "$?" "write_memory.sh should still succeed after opting .continuity/ out of git"
+mkdir -p .continuity/.staged
+printf '# After opt-out\n\nUntracked note.\n' > .continuity/.staged/learning-20260927T000001Z-2.md
+python3 "$REPO_ROOT/lib/write_memory.py" "$FIXTURE_DIR" explicit-checkpoint >/dev/null 2>&1
+assert_ok "$?" "write_memory.py should still succeed after opting .continuity/ out of git"
 assert_file_exists ".continuity/metadata.json" "metadata.json should still exist after opt-out"
 assert_file_exists ".continuity/state.md" "state.md should still exist after opt-out"
+grep -q "After opt-out" .continuity/learnings.md 2>/dev/null \
+  || { echo "FAIL: a note staged after opt-out was not written"; FAILURES=$((FAILURES + 1)); }
 
 if [ "$FAILURES" -eq 0 ]; then
   echo "PASS: test_optout_persistence.sh"

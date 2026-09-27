@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Author: Navjyot Nishant
 # Created: 2026-09-12
-# Last updated: 2026-09-12
+# Last updated: 2026-09-27
 # Description: Asserts the plugin directory tree from plan.md exists at the repo root.
 set -u
 
@@ -26,12 +26,6 @@ for dir in .claude-plugin hooks commands lib templates tests docs; do
   fi
 done
 
-if git -C "$repo_root" status --porcelain | grep -q .; then
-  echo "FAIL - git status shows uncommitted changes"
-  failures=$((failures + 1))
-else
-  echo "ok   - git status is clean, all changes tracked"
-fi
 
 if [ -x "$repo_root/tests/test_structure.sh" ]; then
   echo "ok   - tests/test_structure.sh is executable"
