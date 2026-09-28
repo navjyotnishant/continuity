@@ -2,6 +2,10 @@
 
 Cross-session memory for coding agents — as a plugin, not a service.
 
+![Continuity overview: coding agents, triggers, adapter, memory engine and the project's .continuity/ store](docs/architecture/overview.png)
+
+How it works in detail: [`docs/architecture.md`](docs/architecture.md).
+
 Every new Claude Code session starts with no memory of the last one, so a
 developer re-explains the same decisions, constraints, and open tasks over
 and over. Continuity fixes that by persisting a project's important context
