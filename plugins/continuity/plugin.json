@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "continuity",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Cross-session memory for coding agents: persists project-scoped context under .continuity/ as plain Markdown, recalls a bounded subset at session start, captures after meaningful edits and commits, and fails open on any error.",
   "author": { "name": "Navjyot Nishant" },
   "repository": "https://github.com/navjyotnishant/continuity",
