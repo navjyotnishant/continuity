@@ -78,14 +78,14 @@ sequenceDiagram
     participant S as .continuity/
 
     A->>SS: session starts (SessionStart / sessionStart)
-    SS->>S: seed store if missing; check schema
+    SS->>S: seed store if missing, then check schema
     SS->>S: read state, tasks, decisions, learnings, last handoff
     SS-->>A: staging instructions + labelled context (≤200 lines, ≤10 KB)
 
-    Note over A: Agent works. When something is worth keeping,<br/>it writes a note to .continuity/.staged/<kind>-<ts>-<n>.md
+    Note over A: Agent works. When something is worth keeping,<br/>it writes a note to .continuity/.staged/#lt;kind#gt;-#lt;ts#gt;-#lt;n#gt;.md
 
     A->>CT: after a tool call (edit / patch / shell)
-    CT->>CT: meaningful? (not whitespace-only; git commit or real diff)
+    CT->>CT: meaningful? (not whitespace-only: a git commit or a real diff)
     alt meaningful
         CT-)W: launch detached, return immediately
         W->>S: lock → merge staged notes → handoff → prune → unlock
@@ -186,17 +186,17 @@ agent, through the staging folder.
 
 ```mermaid
 flowchart TD
-    START["python3 lib/write_memory.py &lt;root&gt; &lt;trigger&gt;<br/>(detached process)"] --> ST{"anything in .staged/?"}
+    START["python3 lib/write_memory.py #lt;root#gt; #lt;trigger#gt;<br/>(detached process)"] --> ST{"anything in .staged/?"}
     ST -- no --> DONE0["exit, write nothing"]
     ST -- yes --> MG{"schema OK?<br/>(migrate.py)"}
     MG -- "newer / unreadable" --> DONE1["log, write nothing"]
-    MG -- ok --> LK{"lock .continuity/<br/>(mkdir; 5 s timeout;<br/>stale after 10 s)"}
+    MG -- ok --> LK{"lock .continuity/<br/>(mkdir, 5 s timeout,<br/>stale after 10 s)"}
     LK -- busy --> DONE2["log lock-unavailable, exit"]
     LK -- held --> SEED["seed any missing files"]
     SEED --> EACH["for each staged note"]
     EACH --> SC["secret scan: drop matching lines<br/>(note fully blocked → drop it, log)"]
     SC --> APP["append entry to decisions.md /<br/>tasks.md / learnings.md<br/>(atomic write)"]
-    APP --> HO["write sessions/&lt;ts&gt;-&lt;pid&gt;.md handoff"]
+    APP --> HO["write sessions/#lt;ts#gt;-#lt;pid#gt;.md handoff"]
     HO --> RM["delete the consumed staged notes"]
     RM --> PR["retention: prune old sessions/,<br/>trim errors.log, sweep *.tmp.* debris"]
     PR --> UL["unlock"]
