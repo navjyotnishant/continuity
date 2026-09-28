@@ -2,6 +2,10 @@
 
 Cross-session memory for coding agents — as a plugin, not a service.
 
+![Continuity overview: coding agents, triggers, adapter, memory engine and the project's .continuity/ store](docs/architecture/overview.png)
+
+How it works in detail: [`docs/architecture.md`](docs/architecture.md).
+
 Every new Claude Code session starts with no memory of the last one, so a
 developer re-explains the same decisions, constraints, and open tasks over
 and over. Continuity fixes that by persisting a project's important context
@@ -14,11 +18,13 @@ start of the next session. Full rationale: [`docs/intent/continuity.md`](docs/in
 [`specs/001-continuity/`](specs/001-continuity/) for the intent doc, full
 feature specification, and implementation plan, and
 [`specs/002-multi-agent/`](specs/002-multi-agent/) for the Codex/Cursor
-support design.
+support design. For how it all fits together (session flow, agent adapters, the
+background writer, the store and failure handling), read
+[`docs/architecture.md`](docs/architecture.md).
 
 ## Why a plugin, not a service
 
-Continuity ships as a plugin for Claude Code, Codex and Cursor, distributed via a
+Continuity ships as a plugin for Claude Code, Codex (beta) and Cursor, distributed via a
 GitHub-hosted marketplace — no separate server, no database installation, no
 cloud dependency, and no Go, Node, or other standalone runtime. The entire
 implementation is Python 3.9+ standard library only — no third-party
@@ -75,7 +81,7 @@ specs/            Feature spec, implementation plan, and tasks (spec-kit)
 
 ## Installing
 
-Continuity installs like any other plugin for Claude Code, Codex or Cursor, from this repo's
+Continuity installs like any other plugin for Claude Code, Codex (beta) or Cursor, from this repo's
 marketplace listing (`.claude-plugin/marketplace.json`). See
 [`docs/install.md`](docs/install.md) for per-agent install steps, including the
 documented `.gitignore` opt-out for teams that want `.continuity/` to stay
@@ -107,8 +113,4 @@ project with sensitive context.
 
 ## License
 
-[MIT](LICENSE). No license was specified in the project's intent or spec
-docs at scaffold time — MIT was chosen as the conventional default for an
-open-source, GitHub-marketplace-distributed developer tool. **Confirm this
-is the intended license** before the first public release; swapping it later
-is a one-file change.
+[Apache License 2.0](LICENSE).

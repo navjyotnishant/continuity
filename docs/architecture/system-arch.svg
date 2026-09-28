@@ -1,0 +1,220 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1560 790" width="1560" height="790" role="img" aria-labelledby="title desc">
+  <title id="title">Continuity system architecture</title>
+  <desc id="desc">Claude Code, Codex and Cursor call Continuity's hook configs and three hook scripts. lib/agents.py converts each agent's event into one shape; select_context.py builds the bounded recall and write_memory.py merges staged notes in a detached process into the project's .continuity/ store. Claude Desktop (Cowork) is not supported.</desc>
+  <defs>
+    <linearGradient id="gAgent" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff5ea"/><stop offset="1" stop-color="#ffe2c2"/></linearGradient>
+    <linearGradient id="gComp" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7f8fb"/><stop offset="1" stop-color="#e5e9f0"/></linearGradient>
+    <linearGradient id="gAdapt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9f8f6"/><stop offset="1" stop-color="#c9ede7"/></linearGradient>
+    <linearGradient id="gStore" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f3edff"/><stop offset="1" stop-color="#dccdff"/></linearGradient>
+    <linearGradient id="gGood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ecf8f0"/><stop offset="1" stop-color="#d3efdd"/></linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#1f2933" flood-opacity="0.14"/></filter>
+    <marker id="mSlate" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="hSlate"/></marker>
+    <marker id="mGreen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="hGreen"/></marker>
+    <marker id="mOrange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="hOrange"/></marker>
+    <marker id="mPurple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="hPurple"/></marker>
+    <style>
+      .bg{fill:#ffffff}
+      .frame{fill:none;stroke:#9aa5b1;stroke-width:2}
+      text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;fill:#1f2933}
+      .mono{font-family:"SF Mono",Menlo,Consolas,"Liberation Mono",monospace}
+      .h1{font-size:30px;font-weight:700}
+      .sub{font-size:15px;fill:#52606d}
+      .col{font-size:12px;font-weight:700;letter-spacing:1.4px;fill:#7b8794}
+      .name{font-size:15px;font-weight:700}
+      .nameM{font-size:13.5px;font-weight:700}
+      .small{font-size:12.5px;fill:#3e4c59}
+      .tiny{font-size:11.5px;fill:#52606d}
+      .lane{font-size:13px;font-weight:600}
+      .agent{fill:url(#gAgent);stroke:#e8872b;stroke-width:1.6}
+      .comp{fill:url(#gComp);stroke:#7b8794;stroke-width:1.4}
+      .adapt{fill:url(#gAdapt);stroke:#1f9e8f;stroke-width:2}
+      .store{fill:url(#gStore);stroke:#7c4dff;stroke-width:2.4}
+      .storeTop{fill:#efe6ff;stroke:#7c4dff;stroke-width:2.4}
+      .good{fill:url(#gGood);stroke:#2e9e5b;stroke-width:1.4}
+      .off{fill:#f5f7fa;stroke:#9aa5b1;stroke-width:1.4;stroke-dasharray:5 4}
+      .group{fill:none;stroke:#e8872b;stroke-width:1.2;stroke-dasharray:3 4;opacity:.7}
+      .badge{fill:#e8872b}
+      .badgeT{font-size:10.5px;font-weight:700;fill:#ffffff}
+      .aSlate{fill:none;stroke:#7b8794;stroke-width:1.8}
+      .aDash{fill:none;stroke:#7b8794;stroke-width:1.8;stroke-dasharray:7 5}
+      .aGreen{fill:none;stroke:#2e9e5b;stroke-width:2.4}
+      .aOrange{fill:none;stroke:#e8872b;stroke-width:2.4}
+      .aPurple{fill:none;stroke:#7c4dff;stroke-width:2}
+      .aPurpleD{fill:none;stroke:#7c4dff;stroke-width:2;stroke-dasharray:7 5}
+      .hSlate{fill:#7b8794}.hGreen{fill:#2e9e5b}.hOrange{fill:#e8872b}.hPurple{fill:#7c4dff}
+      .tGreen{fill:#2e7d4f}.tOrange{fill:#b8641a}.tPurple{fill:#5b32c7}.tTeal{fill:#16756a}
+      @media (prefers-color-scheme: dark){
+        .bg{fill:#14181f}
+        .frame{stroke:#52606d}
+        text{fill:#e4e7eb}
+        .sub,.tiny{fill:#9aa5b1}.small{fill:#cbd2d9}.col{fill:#7b8794}
+        .agent{fill:#3b2a17;stroke:#f0a255}
+        .comp{fill:#232a35;stroke:#7b8794}
+        .adapt{fill:#133b37;stroke:#3cc2b0}
+        .store{fill:#2c2150;stroke:#a887ff}
+        .storeTop{fill:#372a62;stroke:#a887ff}
+        .good{fill:#16321f;stroke:#4cc47f}
+        .off{fill:#1c2129;stroke:#616e7c}
+        .tGreen{fill:#6fd39a}.tOrange{fill:#f0a255}.tPurple{fill:#b89cff}.tTeal{fill:#5fd4c4}
+        .aGreen{stroke:#4cc47f}.hGreen{fill:#4cc47f}
+        .aPurple,.aPurpleD{stroke:#a887ff}.hPurple{fill:#a887ff}
+      }
+    </style>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1560" height="790"/>
+  <!-- house frame, drawn first -->
+  <path class="frame" d="M22,16 C420,12 1140,19 1538,15 C1545,210 1541,560 1544,774 C1150,778 420,772 20,775 C15,560 19,210 22,16 Z"/>
+
+  <!-- headline -->
+  <text class="h1" x="48" y="66">Every session starts where the last one left off.</text>
+  <text class="sub" x="48" y="96">Continuity v0.2.0 — project memory for coding agents, kept as plain Markdown in each project's .continuity/ folder.</text>
+
+  <!-- legend -->
+  <g transform="translate(868,122)">
+    <polygon class="agent" points="4,0 20,0 24,8 20,16 4,16 0,8"/><text class="tiny" x="30" y="12">coding agent</text>
+    <rect class="comp" x="118" y="0" width="22" height="16" rx="4"/><text class="tiny" x="146" y="12">plugin part</text>
+    <rect class="adapt" x="226" y="0" width="22" height="16" rx="4"/><text class="tiny" x="254" y="12">agent adapter</text>
+    <path class="store" d="M348,3 A11,3 0 0 1 370,3 L370,14 A11,3 0 0 1 348,14 Z"/><text class="tiny" x="378" y="12">project store</text>
+    <line class="aSlate" x1="470" y1="8" x2="500" y2="8" marker-end="url(#mSlate)"/><text class="tiny" x="506" y="12">call</text>
+    <line class="aDash" x1="540" y1="8" x2="570" y2="8" marker-end="url(#mSlate)"/><text class="tiny" x="576" y="12">detached</text>
+  </g>
+
+  <!-- column labels -->
+  <text class="col" x="155" y="228" text-anchor="middle">CODING AGENTS</text>
+  <text class="col" x="430" y="228" text-anchor="middle">HOOK CONFIG</text>
+  <text class="col" x="660" y="228" text-anchor="middle">HOOK SCRIPTS</text>
+  <text class="col" x="930" y="228" text-anchor="middle">ADAPTER</text>
+  <text class="col" x="1160" y="228" text-anchor="middle">LIB (PYTHON STDLIB)</text>
+  <text class="col" x="1410" y="228" text-anchor="middle">YOUR PROJECT</text>
+
+  <!-- recall lane (top, green = output to the agent) -->
+  <path class="aGreen" d="M790,245 L790,180 L262,180 L262,232" marker-end="url(#mGreen)"/>
+  <text class="lane tGreen" x="526" y="172" text-anchor="middle">Recall: labelled context + staging instructions, injected at session start</text>
+
+  <!-- coding agents -->
+  <rect class="group" x="36" y="238" width="238" height="296" rx="14"/>
+  <g filter="url(#shadow)">
+    <polygon class="agent" points="64,248 246,248 260,280 246,312 64,312 50,280"/>
+    <polygon class="agent" points="64,353 246,353 260,385 246,417 64,417 50,385"/>
+    <polygon class="agent" points="64,458 246,458 260,490 246,522 64,522 50,490"/>
+  </g>
+  <text class="name" x="155" y="286" text-anchor="middle">Claude Code</text>
+  <text class="name" x="145" y="391" text-anchor="middle">Codex</text>
+  <rect class="badge" x="178" y="377" width="40" height="18" rx="9"/><text class="badgeT" x="198" y="390" text-anchor="middle">BETA</text>
+  <text class="name" x="155" y="496" text-anchor="middle">Cursor</text>
+
+  <!-- unsupported -->
+  <polygon class="off" points="54,584 196,584 210,610 196,636 54,636 40,610"/>
+  <text class="small" x="125" y="606" text-anchor="middle">Claude Desktop</text>
+  <text class="tiny" x="125" y="622" text-anchor="middle">(Cowork)</text>
+  <text class="tiny" x="125" y="666" text-anchor="middle">not supported: never runs plugin hooks</text>
+
+  <!-- agents -> configs -->
+  <line class="aSlate" x1="260" y1="280" x2="328" y2="288" marker-end="url(#mSlate)"/>
+  <line class="aSlate" x1="260" y1="385" x2="328" y2="312" marker-end="url(#mSlate)"/>
+  <line class="aSlate" x1="260" y1="490" x2="328" y2="480" marker-end="url(#mSlate)"/>
+
+  <!-- hook configs -->
+  <g filter="url(#shadow)">
+    <rect class="comp" x="330" y="250" width="200" height="80" rx="12"/>
+    <rect class="comp" x="330" y="440" width="200" height="80" rx="12"/>
+  </g>
+  <text class="nameM mono" x="430" y="284" text-anchor="middle">hooks/hooks.json</text>
+  <text class="small" x="430" y="306" text-anchor="middle">Claude Code · Codex</text>
+  <text class="nameM mono" x="430" y="474" text-anchor="middle">hooks/cursor-hooks.json</text>
+  <text class="small" x="430" y="496" text-anchor="middle">Cursor</text>
+
+  <!-- bus -->
+  <line class="aSlate" x1="530" y1="290" x2="560" y2="290"/>
+  <line class="aSlate" x1="530" y1="480" x2="560" y2="480"/>
+  <line class="aSlate" x1="560" y1="280" x2="560" y2="490"/>
+  <line class="aSlate" x1="560" y1="280" x2="598" y2="280" marker-end="url(#mSlate)"/>
+  <line class="aSlate" x1="560" y1="385" x2="598" y2="385" marker-end="url(#mSlate)"/>
+  <line class="aSlate" x1="560" y1="490" x2="598" y2="490" marker-end="url(#mSlate)"/>
+
+  <!-- hook scripts -->
+  <g filter="url(#shadow)">
+    <rect class="comp" x="600" y="245" width="210" height="70" rx="12"/>
+    <rect class="comp" x="600" y="345" width="210" height="80" rx="12"/>
+    <rect class="comp" x="600" y="455" width="210" height="70" rx="12"/>
+  </g>
+  <text class="nameM mono" x="705" y="274" text-anchor="middle">session-start.py</text>
+  <text class="small" x="705" y="296" text-anchor="middle">Recall</text>
+  <text class="nameM mono" x="705" y="374" text-anchor="middle">capture-trigger.py</text>
+  <text class="small" x="705" y="396" text-anchor="middle">Capture after real edits</text>
+  <text class="small" x="705" y="413" text-anchor="middle">and git commits</text>
+  <text class="nameM mono" x="705" y="484" text-anchor="middle">session-end.py</text>
+  <text class="small" x="705" y="506" text-anchor="middle">Flush</text>
+
+  <!-- scripts -> adapter -->
+  <line class="aSlate" x1="810" y1="280" x2="848" y2="280" marker-end="url(#mSlate)"/>
+  <line class="aSlate" x1="810" y1="385" x2="848" y2="385" marker-end="url(#mSlate)"/>
+  <line class="aSlate" x1="810" y1="490" x2="848" y2="490" marker-end="url(#mSlate)"/>
+
+  <!-- adapter -->
+  <rect class="adapt" x="850" y="245" width="160" height="280" rx="14" filter="url(#shadow)"/>
+  <text class="nameM mono tTeal" x="930" y="290" text-anchor="middle">lib/agents.py</text>
+  <text class="small" x="930" y="330" text-anchor="middle">detects the agent</text>
+  <text class="small" x="930" y="350" text-anchor="middle">from the event</text>
+  <text class="small" x="930" y="385" text-anchor="middle">converts it to</text>
+  <text class="small" x="930" y="405" text-anchor="middle">one shape</text>
+  <text class="small" x="930" y="440" text-anchor="middle">formats the reply</text>
+  <text class="small" x="930" y="460" text-anchor="middle">for that agent</text>
+  <text class="tiny" x="930" y="502" text-anchor="middle">never reads env vars</text>
+
+  <!-- adapter -> lib -->
+  <line class="aSlate" x1="1010" y1="280" x2="1048" y2="280" marker-end="url(#mSlate)"/>
+  <line class="aDash" x1="1010" y1="385" x2="1048" y2="385" marker-end="url(#mSlate)"/>
+  <line class="aDash" x1="1010" y1="490" x2="1048" y2="490" marker-end="url(#mSlate)"/>
+
+  <!-- lib -->
+  <g filter="url(#shadow)">
+    <rect class="comp" x="1050" y="245" width="220" height="70" rx="12"/>
+    <rect class="comp" x="1050" y="345" width="220" height="180" rx="12"/>
+  </g>
+  <text class="nameM mono" x="1160" y="274" text-anchor="middle">select_context.py</text>
+  <text class="small" x="1160" y="296" text-anchor="middle">bounded: ≤ 200 lines · ≤ 10 KB</text>
+  <text class="nameM mono" x="1160" y="374" text-anchor="middle">write_memory.py</text>
+  <text class="small" x="1160" y="396" text-anchor="middle">separate process —</text>
+  <text class="small" x="1160" y="413" text-anchor="middle">the agent never waits</text>
+  <text class="tiny" x="1160" y="442" text-anchor="middle">lock → schema check</text>
+  <text class="tiny" x="1160" y="462" text-anchor="middle">secret scan → atomic append</text>
+  <text class="tiny" x="1160" y="482" text-anchor="middle">session handoff</text>
+  <text class="tiny" x="1160" y="502" text-anchor="middle">→ prune old sessions</text>
+
+  <!-- lib <-> store -->
+  <line class="aPurple" x1="1310" y1="280" x2="1272" y2="280" marker-end="url(#mPurple)"/>
+  <line class="aPurpleD" x1="1270" y1="435" x2="1308" y2="435" marker-end="url(#mPurple)"/>
+
+  <!-- store (most prominent) -->
+  <g filter="url(#shadow)">
+    <path class="store" d="M1310,262 A100,17 0 0 1 1510,262 L1510,520 A100,17 0 0 1 1310,520 Z"/>
+    <ellipse class="storeTop" cx="1410" cy="262" rx="100" ry="17"/>
+  </g>
+  <text class="name mono tPurple" x="1410" y="316" text-anchor="middle" style="font-size:19px">.continuity/</text>
+  <text class="small mono" x="1410" y="348" text-anchor="middle" style="font-size:12px">state.md · tasks.md</text>
+  <text class="small mono" x="1410" y="370" text-anchor="middle" style="font-size:12px">decisions.md</text>
+  <text class="small mono" x="1410" y="392" text-anchor="middle" style="font-size:12px">learnings.md</text>
+  <text class="small mono" x="1410" y="414" text-anchor="middle" style="font-size:12px">sessions/ · .staged/</text>
+  <text class="small mono" x="1410" y="436" text-anchor="middle" style="font-size:12px">metadata.json</text>
+  <text class="small mono" x="1410" y="458" text-anchor="middle" style="font-size:12px">errors.log</text>
+  <text class="tiny" x="1410" y="492" text-anchor="middle">plain Markdown · git-tracked</text>
+
+  <!-- staging lane (bottom, orange = the agent's own work) -->
+  <path class="aOrange" d="M250,534 L250,652 L1410,652 L1410,540" marker-end="url(#mOrange)"/>
+  <text class="lane tOrange" x="830" y="642" text-anchor="middle">The agent writes notes worth keeping into .continuity/.staged/  (decision · task · learning · handoff)</text>
+
+  <!-- takeaway row -->
+  <g filter="url(#shadow)">
+    <rect class="good" x="40" y="692" width="470" height="62" rx="31"/>
+    <rect class="good" x="545" y="692" width="470" height="62" rx="31"/>
+    <rect class="good" x="1050" y="692" width="470" height="62" rx="31"/>
+  </g>
+  <text class="name tGreen" x="275" y="719" text-anchor="middle">Python standard library only</text>
+  <text class="small" x="275" y="740" text-anchor="middle">no server, no database, no network calls</text>
+  <text class="name tGreen" x="780" y="719" text-anchor="middle">Fails open</text>
+  <text class="small" x="780" y="740" text-anchor="middle">hooks always exit 0 — problems go to errors.log</text>
+  <text class="name tGreen" x="1285" y="719" text-anchor="middle">Never blocks the agent</text>
+  <text class="small" x="1285" y="740" text-anchor="middle">every memory write runs as a detached process</text>
+</svg>
