@@ -2,16 +2,27 @@
 
 How Continuity works, end to end: which coding agents run it, what happens at each point
 in a session, where memory is stored, and what happens when something goes wrong.
-Everything here describes v0.2.0. The design history is in
+Everything here describes v0.2.1. The design history is in
 [`specs/001-continuity/`](../specs/001-continuity/) and
 [`specs/002-multi-agent/`](../specs/002-multi-agent/).
 
+![Continuity overview: coding agents fire four triggers into an adapter; a store guard sets up and checks the store; the recall builder sends a bounded summary back to the agent at session start; the agent saves notes into a staging inbox that a detached background writer merges into the project's .continuity/ memory](architecture/overview.png)
+
+*The overview. Claude Code, Codex (beta) and Cursor fire the same four triggers. The adapter
+converts each agent's events into one format. At session start, the store guard sets up
+and checks `.continuity/`, and the recall builder sends a bounded summary back to the agent
+(green). During the session the agent saves notes into the **staging inbox** (orange). The
+background writer then picks those notes up **from** the inbox and merges them into the
+memory files. (The arrow between the writer and the inbox in this image points the wrong
+way.) Claude Desktop is not supported, because it never runs plugin hooks.*
+
+### Component view
+
 ![Continuity system architecture: coding agents call the hook configs and three hook scripts; lib/agents.py converts each agent's event; select_context.py builds the bounded recall and a detached write_memory.py merges staged notes into the project's .continuity/ store](architecture/system-arch.svg)
 
-*Claude Code, Codex (beta) and Cursor share one set of hook scripts. Recall flows back
-to the agent at session start (green). The agent's own notes go into
-`.continuity/.staged/` (orange). Claude Desktop is not supported because it never runs
-plugin hooks. Sections 2–7 below break each part down.*
+*The same system, drawn from the code: the hook configs, the three hook scripts, the
+`lib/agents.py` adapter, and the modules that read and write the store. Sections 2–7
+below break each part down.*
 
 ## In one paragraph
 
