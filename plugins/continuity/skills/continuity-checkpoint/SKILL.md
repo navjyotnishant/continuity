@@ -31,9 +31,14 @@ Stage nothing if nothing qualifies. An empty checkpoint is a valid outcome.
 
 ## Step 3: consolidate
 
-Run the writer. `<plugin>` is this plugin's root: `$CLAUDE_PLUGIN_ROOT` or
-`$PLUGIN_ROOT` if either is set, otherwise the directory two levels above this
-`SKILL.md`.
+Run the writer. `<plugin>` is this plugin's own install location: the
+directory two levels above this `SKILL.md` (i.e. `SKILL.md`'s directory,
+then up two more levels). A shared hook/skill worker's environment can carry
+*another* plugin's `CLAUDE_PLUGIN_ROOT` or `PLUGIN_ROOT`, so only fall back to
+those environment variables if this skill's own path cannot be determined.
+Before running the command, confirm `<plugin>/lib/write_memory.py` exists —
+if it does not, the resolved `<plugin>` is wrong; fall back to the
+environment variables (or report the failure if neither resolves).
 
 ```bash
 python3 "<plugin>/lib/write_memory.py" "<root>" explicit-checkpoint
