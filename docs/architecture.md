@@ -6,6 +6,13 @@ Everything here describes v0.2.0. The design history is in
 [`specs/001-continuity/`](../specs/001-continuity/) and
 [`specs/002-multi-agent/`](../specs/002-multi-agent/).
 
+![Continuity system architecture: coding agents call the hook configs and three hook scripts; lib/agents.py converts each agent's event; select_context.py builds the bounded recall and a detached write_memory.py merges staged notes into the project's .continuity/ store](architecture/system-arch.svg)
+
+*Claude Code, Codex (beta) and Cursor share one set of hook scripts. Recall flows back
+to the agent at session start (green). The agent's own notes go into
+`.continuity/.staged/` (orange). Claude Desktop is not supported because it never runs
+plugin hooks. Sections 2–7 below break each part down.*
+
 ## In one paragraph
 
 Continuity is a plugin that gives a coding agent memory of a project across sessions.
