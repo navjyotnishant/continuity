@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-27
+
+### Added
+
+- Continuity now installs and runs in **Cursor** as well as Claude Code, from
+  the same GitHub marketplace. Both are live-verified: each recalls at session
+  start, captures after meaningful edits and commits, and flushes at session
+  end.
+- Continuity now also installs in **Codex**, shipped as **beta**: it is built
+  and unit-tested but not yet verified in a live Codex session (tracked in
+  CONTINUI-64), so treat its recall/capture behavior as unconfirmed until a
+  later patch release verifies it live.
+- A `continuity-checkpoint` skill, for Codex, which loads skills but not
+  commands.
+
+### Changed
+
+- Install docs are now per coding agent. Claude Desktop (Cowork) is documented
+  as unsupported, because it does not run plugin hooks.
+- The plugin now lives under `plugins/continuity/`. Existing Claude Code
+  installs pick this up automatically on the next marketplace update, with
+  the same plugin id.
+
 ## [0.1.2] - 2026-09-27
 
 ### Fixed
@@ -68,7 +91,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a durable file.
 - Retention pruning for old session-handoff files and stale lock/temp debris.
 
-[Unreleased]: https://github.com/navjyotnishant/continuity/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/navjyotnishant/continuity/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/navjyotnishant/continuity/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/navjyotnishant/continuity/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/navjyotnishant/continuity/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/navjyotnishant/continuity/releases/tag/v0.1.0

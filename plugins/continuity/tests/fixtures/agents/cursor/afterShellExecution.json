@@ -1,0 +1,24 @@
+{
+  "payload": {
+    "conversation_id": "test-session",
+    "generation_id": "test-session",
+    "model": "default",
+    "command": "git status",
+    "output": "On branch main\nChanges not staged for commit:\n  (use \"git add <file>...\" to update what will be committed)\n  (use \"git restore <file>...\" to discard changes in working directory)\n\tmodified:   notes/a.txt\n\nno changes added to commit (use \"git add\" and/or \"git commit -a\")\n",
+    "duration": 404.312,
+    "sandbox": false,
+    "session_id": "test-session",
+    "hook_event_name": "afterShellExecution",
+    "cursor_version": "2026.09.26-dd393fe",
+    "workspace_roots": [
+      "/home/user/scratch/test-session/scratchpad/t1/repo-cursor2"
+    ],
+    "user_email": "user@example.com",
+    "transcript_path": "/home/user/scratch/transcript.jsonl"
+  },
+  "_env": {
+    "CURSOR_PROJECT_DIR": "/home/user/scratch/test-session/scratchpad/t1/repo-cursor2",
+    "CURSOR_VERSION": "2026.09.26-dd393fe",
+    "CLAUDE_PROJECT_DIR": "/home/user/scratch/test-session/scratchpad/t1/repo-cursor2"
+  }
+}

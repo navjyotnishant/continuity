@@ -23,9 +23,10 @@ Please do not disclose the issue publicly until it has been addressed.
 
 ## Scope
 
-In scope: the plugin's own scripts (`hooks/`, `commands/`, `lib/`) and its
-handling of `.continuity/` content. Out of scope: vulnerabilities in Claude
-Code itself, or in the user's own project code that Continuity happens to run
+In scope: the plugin's own scripts (`plugins/continuity/hooks/`,
+`plugins/continuity/commands/`, `plugins/continuity/lib/`) and its handling
+of `.continuity/` content. Out of scope: vulnerabilities in Claude Code
+itself, or in the user's own project code that Continuity happens to run
 alongside.
 
 ## Supported versions

@@ -18,6 +18,7 @@ preference.
 ## Running the tests
 
 ```bash
+cd plugins/continuity
 python3 tests/run_tests.py
 ```
 
