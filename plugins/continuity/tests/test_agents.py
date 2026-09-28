@@ -154,6 +154,53 @@ class TestNormalizeCodexPatch(unittest.TestCase):
         self.assertTrue(all(os.path.isabs(p["tool_input"].get("file_path", "/")) for p in out))
 
 
+class TestJudgeCodexPatchPerFile(unittest.TestCase):
+    """F1: whitespace-meaningfulness must be judged per file, not whole-patch."""
+
+    def payload(self, patch):
+        return {
+            "hook_event_name": "PostToolUse",
+            "tool_name": "apply_patch",
+            "cwd": "/work/repo",
+            "tool_input": {"command": patch},
+        }
+
+    def test_cross_file_move_captures_both_files(self):
+        # A whole-patch whitespace compare sees "-def f(): return 1" cancel out
+        # "+def f(): return 1" and calls the entire patch a no-op, silently
+        # losing a file move.
+        patch = (
+            "*** Begin Patch\n"
+            "*** Update File: a.py\n"
+            "@@\n-def f(): return 1\n"
+            "*** Update File: b.py\n"
+            "@@\n+def f(): return 1\n"
+            "*** End Patch\n"
+        )
+        out = agents.normalize(self.payload(patch), {})
+        paths = [p["tool_input"]["file_path"] for p in out]
+        self.assertIn("/work/repo/a.py", paths)
+        self.assertIn("/work/repo/b.py", paths)
+
+    def test_delete_file_survives_alongside_whitespace_only_hunk(self):
+        # A whole-patch compare mixes the Delete File's implicit content loss
+        # with c.py's whitespace-only hunk and can cancel out to "no change".
+        patch = (
+            "*** Begin Patch\n"
+            "*** Delete File: old.py\n"
+            "*** Update File: c.py\n"
+            "@@\n-x = 1\n+x  =  1\n"
+            "*** End Patch\n"
+        )
+        out = agents.normalize(self.payload(patch), {})
+        paths = [p["tool_input"]["file_path"] for p in out]
+        self.assertIn("/work/repo/old.py", paths)
+
+    def test_pure_whitespace_only_patch_is_still_a_no_op(self):
+        patch = "*** Begin Patch\n*** Update File: a.py\n@@\n-x = 1\n+x  =  1\n*** End Patch\n"
+        self.assertEqual(agents.normalize(self.payload(patch), {}), [])
+
+
 class TestPatchPaths(unittest.TestCase):
     def test_move_to_and_delete_are_included_once(self):
         patch = "*** Update File: a.py\n*** Move to: b.py\n*** Delete File: a.py\n"

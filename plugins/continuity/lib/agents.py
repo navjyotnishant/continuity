@@ -108,10 +108,17 @@ def _patch_text(payload):
     return command if isinstance(command, str) else ""
 
 
-def _changes_content(patch):
-    """False only when every +/- line pair differs by whitespace alone."""
+_SECTION_HEADER = re.compile(r"^\*\*\* (Add|Update|Delete) File: .*$", re.MULTILINE)
+
+
+def _section_changes_content(header, body):
+    """Judge one Add/Update/Delete File section on its own."""
+    if header.group(1) in ("Add", "Delete"):
+        return True
+    if "\n*** Move to:" in body or body.startswith("*** Move to:"):
+        return True
     removed, added = [], []
-    for line in patch.splitlines():
+    for line in body.splitlines():
         if line.startswith("***") or line.startswith("@@"):
             continue
         if line.startswith("+"):
@@ -119,8 +126,30 @@ def _changes_content(patch):
         elif line.startswith("-"):
             removed.append(line[1:])
     if not removed and not added:
-        return True
+        return False
     return "".join("".join(removed).split()) != "".join("".join(added).split())
+
+
+def _changes_content(patch):
+    """Meaningful if ANY per-file section is; a whitespace-only diff is not."""
+    headers = list(_SECTION_HEADER.finditer(patch))
+    if not headers:
+        removed, added = [], []
+        for line in patch.splitlines():
+            if line.startswith("***") or line.startswith("@@"):
+                continue
+            if line.startswith("+"):
+                added.append(line[1:])
+            elif line.startswith("-"):
+                removed.append(line[1:])
+        if not removed and not added:
+            return True
+        return "".join("".join(removed).split()) != "".join("".join(added).split())
+    bounds = [h.start() for h in headers] + [len(patch)]
+    return any(
+        _section_changes_content(header, patch[header.start():bounds[i + 1]])
+        for i, header in enumerate(headers)
+    )
 
 
 def _from_codex_patch(payload):
