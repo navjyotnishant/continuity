@@ -23,6 +23,9 @@ you to **review and trust the plugin's hooks** once. Until you do, it installs b
 recalls or captures. Codex loads skills, not commands, so checkpoint with the
 `continuity-checkpoint` skill.
 
+Codex support is **beta**: it is built and unit-tested, but not yet verified
+in a live Codex session. This will be confirmed in a later patch release.
+
 ### Cursor
 
 Add the same repository as a team or local marketplace (CLI: `cursor-agent plugin
