@@ -109,8 +109,4 @@ project with sensitive context.
 
 ## License
 
-[MIT](LICENSE). No license was specified in the project's intent or spec
-docs at scaffold time — MIT was chosen as the conventional default for an
-open-source, GitHub-marketplace-distributed developer tool. **Confirm this
-is the intended license** before the first public release; swapping it later
-is a one-file change.
+[Apache License 2.0](LICENSE).
