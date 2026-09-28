@@ -14,11 +14,13 @@ start of the next session. Full rationale: [`docs/intent/continuity.md`](docs/in
 [`specs/001-continuity/`](specs/001-continuity/) for the intent doc, full
 feature specification, and implementation plan, and
 [`specs/002-multi-agent/`](specs/002-multi-agent/) for the Codex/Cursor
-support design.
+support design. For how it all fits together (session flow, agent adapters, the
+background writer, the store and failure handling), read
+[`docs/architecture.md`](docs/architecture.md).
 
 ## Why a plugin, not a service
 
-Continuity ships as a plugin for Claude Code, Codex and Cursor, distributed via a
+Continuity ships as a plugin for Claude Code, Codex (beta) and Cursor, distributed via a
 GitHub-hosted marketplace — no separate server, no database installation, no
 cloud dependency, and no Go, Node, or other standalone runtime. The entire
 implementation is Python 3.9+ standard library only — no third-party
@@ -75,7 +77,7 @@ specs/            Feature spec, implementation plan, and tasks (spec-kit)
 
 ## Installing
 
-Continuity installs like any other plugin for Claude Code, Codex or Cursor, from this repo's
+Continuity installs like any other plugin for Claude Code, Codex (beta) or Cursor, from this repo's
 marketplace listing (`.claude-plugin/marketplace.json`). See
 [`docs/install.md`](docs/install.md) for per-agent install steps, including the
 documented `.gitignore` opt-out for teams that want `.continuity/` to stay

@@ -16,9 +16,16 @@ Start a new session afterwards.
 
 ### Codex
 
-Add the marketplace `https://github.com/navjyotnishant/continuity.git` in Codex's plugin
-settings (CLI: `codex plugin marketplace add <owner/repo|git-url|path>`, then
-`codex plugin add continuity@<marketplace-name>`), then install `continuity`. Codex asks
+Add the marketplace and install the plugin:
+
+```sh
+codex plugin marketplace add navjyotnishant/continuity
+codex plugin add continuity@continuity
+```
+
+Add the marketplace **without** an `@<branch>` suffix. A marketplace added as
+`navjyotnishant/continuity@some-branch` stays pinned to that branch, so later updates
+reinstall whatever that branch holds instead of the latest release. Codex asks
 you to **review and trust the plugin's hooks** once. Until you do, it installs but never
 recalls or captures. Codex loads skills, not commands, so checkpoint with the
 `continuity-checkpoint` skill.
@@ -28,9 +35,13 @@ in a live Codex session. This will be confirmed in a later patch release.
 
 ### Cursor
 
-Add the same repository as a team or local marketplace (CLI: `cursor-agent plugin
-marketplace add <git-url>`). Cursor has no headless plugin-install command: after the
-marketplace is added, install `continuity` from Cursor's plugin UI. Cursor reads
+Add the same repository as a marketplace, then install `continuity` from Cursor's
+plugin settings. Cursor has no command-line install:
+
+```sh
+cursor-agent plugin marketplace add https://github.com/navjyotnishant/continuity
+```
+ Cursor reads
 `.cursor-plugin/plugin.json` and its hooks from `hooks/cursor-hooks.json`.
 
 ### Claude Desktop (Cowork): not supported
@@ -41,8 +52,32 @@ This section changes once that is fixed.
 
 ### Updating
 
-Refresh the marketplace, reinstall, and start a new session. A running session keeps
-the version it started with.
+Refresh the marketplace, update the plugin, then start a new session. A running session
+keeps the version it started with.
+
+| Agent | Update | Check the installed version |
+|---|---|---|
+| Claude Code | `/plugin marketplace update continuity`, then update `continuity` in `/plugin` (CLI: `claude plugin marketplace update continuity` and `claude plugin update continuity@continuity`) | `claude plugin list` |
+| Codex | `codex plugin marketplace upgrade continuity`, then `codex plugin add continuity@continuity` | `codex plugin list --json` (the `installed` entry's `version`) |
+| Cursor | `cursor-agent plugin marketplace update continuity`, then update `continuity` in Cursor's plugin settings | the plugin's version in Cursor's plugin settings |
+
+**If an update installs an old version**, the marketplace is pinned to a branch rather
+than the default one. This happens with a marketplace added with an `@<branch>` suffix,
+or one pointing at a branch that has since been deleted. Remove it and add it again
+without a branch, then update the plugin:
+
+```sh
+# Codex
+codex plugin marketplace remove continuity
+codex plugin marketplace add navjyotnishant/continuity
+codex plugin add continuity@continuity
+
+# Cursor (then update continuity in Cursor's plugin settings)
+cursor-agent plugin marketplace remove continuity
+cursor-agent plugin marketplace add https://github.com/navjyotnishant/continuity
+```
+
+Codex may ask you to trust the plugin's hooks again after a reinstall.
 
 ## `.continuity/` is git-tracked by default
 
