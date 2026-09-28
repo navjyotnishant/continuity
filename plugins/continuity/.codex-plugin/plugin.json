@@ -1,0 +1,19 @@
+{
+  "name": "continuity",
+  "version": "0.2.0",
+  "description": "Cross-session memory for coding agents: persists project-scoped context under .continuity/ as plain Markdown, recalls a bounded subset at session start, captures after meaningful edits and commits, and fails open on any error.",
+  "author": { "name": "Navjyot Nishant" },
+  "repository": "https://github.com/navjyotnishant/continuity",
+  "license": "MIT",
+  "keywords": ["memory", "context", "sessions", "continuity"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Continuity",
+    "shortDescription": "Remembers a project's decisions, tasks and learnings across sessions",
+    "longDescription": "Keeps plain-Markdown memory under .continuity/ in each project. Recalls a bounded, labelled summary when a session starts, records notes after meaningful edits and commits, and never blocks or breaks a session if anything goes wrong.",
+    "developerName": "Navjyot Nishant",
+    "category": "Developer Tools",
+    "capabilities": ["Interactive"],
+    "defaultPrompt": ["What did we decide last session?", "Checkpoint what we learned so far"]
+  }
+}

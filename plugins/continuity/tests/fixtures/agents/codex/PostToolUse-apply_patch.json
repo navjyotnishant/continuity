@@ -1,0 +1,17 @@
+{
+  "_source": "unverified: built from Codex hooks docs (learn.chatgpt.com/docs/hooks) and the apply_patch headers confirmed in the codex 0.141 binary (specs/002-multi-agent/verification.md, V2); replace with a live recording in Task 7",
+  "payload": {
+    "session_id": "test-session",
+    "cwd": "/home/user/scratch/repo",
+    "hook_event_name": "PostToolUse",
+    "model": "gpt-5-codex",
+    "turn_id": "test-turn",
+    "tool_name": "apply_patch",
+    "tool_use_id": "test-tool-use",
+    "tool_input": {
+      "command": "*** Begin Patch\n*** Add File: notes/a.txt\n+hello\n*** End Patch\n"
+    },
+    "tool_response": {}
+  },
+  "_env": {}
+}

@@ -1,6 +1,6 @@
 # Continuity
 
-Cross-session memory for Claude Code — as a plugin, not a service.
+Cross-session memory for coding agents — as a plugin, not a service.
 
 Every new Claude Code session starts with no memory of the last one, so a
 developer re-explains the same decisions, constraints, and open tasks over
@@ -9,19 +9,16 @@ and over. Continuity fixes that by persisting a project's important context
 to plain text files, and loading a small, relevant slice of it back in at the
 start of the next session. Full rationale: [`docs/intent/continuity.md`](docs/intent/continuity.md).
 
-**Status**: repository skeleton laid out, implementation in progress. This
-repository holds the intent doc, the full feature specification, and the
-implementation plan (see [`specs/001-continuity/`](specs/001-continuity/)).
-`lib/common.py` (path resolution, fail-open logging, metadata defaults) and
-the `tests/run_tests.py` harness exist and pass; the rest of the plugin's
-scripts (`hooks/`, `commands/`, the remaining `lib/` modules, `templates/`,
-`.claude-plugin/`) are scaffolded as empty directories awaiting the
-implementation phases in
-[`specs/001-continuity/tasks.md`](specs/001-continuity/tasks.md).
+**Status**: implemented and released. The plugin lives in
+[`plugins/continuity/`](plugins/continuity/); see
+[`specs/001-continuity/`](specs/001-continuity/) for the intent doc, full
+feature specification, and implementation plan, and
+[`specs/002-multi-agent/`](specs/002-multi-agent/) for the Codex/Cursor
+support design.
 
 ## Why a plugin, not a service
 
-Continuity ships strictly as a Claude Code plugin distributed via a
+Continuity ships as a plugin for Claude Code, Codex and Cursor, distributed via a
 GitHub-hosted marketplace — no separate server, no database installation, no
 cloud dependency, and no Go, Node, or other standalone runtime. The entire
 implementation is Python 3.9+ standard library only — no third-party
@@ -58,37 +55,37 @@ and the flagged design tensions are in
 ## Repository layout
 
 ```
-.claude-plugin/   Plugin manifest + marketplace listing (not yet populated)
-hooks/            SessionStart / PostToolUse / SessionEnd hook scripts
-commands/         Slash commands (e.g. /continuity-checkpoint)
-lib/              Shared logic: locking, atomic writes, secret scan,
-                  context selection, schema migration, retention
-templates/        Seed content for a first-ever .continuity/ store
-tests/            Stdlib `unittest` tests, run via tests/run_tests.py — no
-                  third-party test framework dependency
+plugins/continuity/   The plugin root (Codex requires a real subfolder, not
+                       the repo root — CONTINUI-59):
+  .claude-plugin/   Plugin manifest + marketplace listing
+  .codex-plugin/    Codex manifest
+  .cursor-plugin/   Cursor manifest
+  hooks/            SessionStart / PostToolUse / SessionEnd hook scripts
+  commands/         Slash commands (e.g. /continuity-checkpoint)
+  skills/           checkpoint skill (Codex loads skills, not commands)
+  lib/              Shared logic: locking, atomic writes, secret scan,
+                    context selection, schema migration, retention
+  templates/        Seed content for a first-ever .continuity/ store
+  tests/            Stdlib `unittest` tests, run via tests/run_tests.py — no
+                    third-party test framework dependency
 scripts/hooks/    This repo's own git hooks (secret-scan pre-commit)
 docs/             Intent doc and install/usage docs
 specs/            Feature spec, implementation plan, and tasks (spec-kit)
 ```
 
-`hooks/`, `commands/`, `templates/`, and `.claude-plugin/` are currently
-empty directories (tracked via `.gitkeep`); `lib/` holds `common.py` with
-the rest of its modules still to come — see
-[`specs/001-continuity/tasks.md`](specs/001-continuity/tasks.md) for the
-task-by-task build order.
+## Installing
 
-## Installing (once implemented)
-
-Continuity will install like any other Claude Code plugin, from this repo's
-marketplace listing (`.claude-plugin/marketplace.json`). Install
-instructions will live in `docs/install.md` once the plugin manifest exists,
-including the documented `.gitignore` opt-out for teams that want
-`.continuity/` to stay local-only rather than git-tracked (`.continuity/` is
-git-tracked by default — see spec.md Q1/FR-020).
+Continuity installs like any other plugin for Claude Code, Codex or Cursor, from this repo's
+marketplace listing (`.claude-plugin/marketplace.json`). See
+[`docs/install.md`](docs/install.md) for per-agent install steps, including the
+documented `.gitignore` opt-out for teams that want `.continuity/` to stay
+local-only rather than git-tracked (`.continuity/` is git-tracked by default
+— see spec.md Q1/FR-020).
 
 ## Development
 
 ```bash
+cd plugins/continuity
 python3 tests/run_tests.py
 ```
 

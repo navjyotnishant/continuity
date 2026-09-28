@@ -1,5 +1,10 @@
 <!--
 Sync Impact Report
+- Version change: 1.0.0 → 1.1.0 (MINOR); Modified: Additional Constraints →
+  Distribution shape, Feel unchanged, Fail open; reason: multi-agent support
+  (specs/002-multi-agent).
+
+Sync Impact Report
 - Version change: none (template) → 1.0.0
 - Modified principles: n/a (initial adoption)
 - Added sections: Core Principles (I–V), Additional Constraints, Governance
@@ -58,11 +63,12 @@ govern how work *on* this repository is carried out.
 Source: `docs/intent/continuity.md`, Constraints (and its answered Open
 Questions, referenced where a constraint depends on one).
 
-- **Distribution shape.** Continuity must ship strictly as a claude-plugin
-  distributed via a marketplace, on GitHub (the intent's answered question on
-  distribution target). No installation or use of Golang, and no other
-  distribution shape, is in scope.
-- **Feel unchanged.** Claude Code must feel exactly as fast and natural with
+- **Distribution shape.** Continuity ships as a plugin for Claude Code, Codex and
+  Cursor, from a single GitHub-hosted marketplace, with one manifest per coding agent and one
+  shared copy of its code. No installation or use of Golang, and no other
+  distribution shape, is in scope. Coding agents that do not run plugin hooks (currently
+  Claude Desktop / Cowork) are documented as unsupported rather than worked around.
+- **Feel unchanged.** The coding agent must feel exactly as fast and natural with
   Continuity installed as without it. Continuity must never block Claude's
   interactive response and must never introduce noticeable latency into the
   user's workflow.
@@ -81,11 +87,11 @@ Questions, referenced where a constraint depends on one).
   entire prior conversation as context; only a bounded, relevant subset of
   prior context is loaded.
 - **Fail open.** If Continuity's memory mechanism fails — a read error, a
-  write error, a corrupted memory file, or a timeout — Claude Code must
+  write error, a corrupted memory file, or a timeout — the coding agent must
   continue working normally with no user-visible breakage. Per the intent's
   answered question on failure handling, the failure is logged locally and
   the continuity operation is skipped in isolation; Continuity becoming
-  unavailable must never prevent Claude Code from continuing normally.
+  unavailable must never prevent the coding agent from continuing normally.
 
 ## Governance
 
@@ -110,4 +116,4 @@ those stages in sequence.
   approved until either the plan or this constitution is changed to resolve
   the conflict.
 
-**Version**: 1.0.0 | **Ratified**: 2026-09-11 | **Last Amended**: 2026-09-11
+**Version**: 1.1.0 | **Ratified**: 2026-09-11 | **Last Amended**: 2026-09-27

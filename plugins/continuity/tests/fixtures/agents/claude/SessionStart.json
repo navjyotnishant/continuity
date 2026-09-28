@@ -1,0 +1,14 @@
+{
+  "payload": {
+    "session_id": "test-session",
+    "transcript_path": "/home/user/scratch/transcript.jsonl",
+    "cwd": "/home/user/scratch/test-session/scratchpad/t1/repo-claude",
+    "scratchpad_dir": "/home/user/scratch/test-session/scratchpad",
+    "hook_event_name": "SessionStart",
+    "source": "startup"
+  },
+  "_env": {
+    "CLAUDE_PROJECT_DIR": "/home/user/scratch/test-session/scratchpad/t1/repo-claude",
+    "CLAUDE_PLUGIN_ROOT": "/home/user/scratch/test-session/scratchpad/t1/recorder"
+  }
+}
