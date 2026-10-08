@@ -19,7 +19,12 @@ Claude Code, Codex (beta) and Cursor.
    **background writer**. The writer picks the notes up from the inbox, removes anything
    that looks like a secret, and merges them into the memory files. Whitespace-only edits
    don't trigger it.
-4. **Flush at session end.** The writer runs once more, so nothing staged is left behind.
+4. **Ask at the end of a turn.** If a turn changed files and the agent saved no note,
+   Continuity asks it once, before the turn ends, to save one, or nothing if the change
+   speaks for itself. It never asks twice in a turn, and never after a turn without
+   changes. Claude Code and Codex continue the same turn; Cursor gets an automatic
+   follow-up message.
+5. **Flush at session end.** The writer runs once more, so nothing staged is left behind.
    You can also save at any time with the checkpoint command (the `continuity-checkpoint`
    skill in Codex).
 
@@ -34,6 +39,9 @@ sequenceDiagram
     A->>S: save notes to the staging inbox
     A->>C: real edit or git commit
     C-)S: background writer merges notes
+    A->>C: turn ends
+    C-->>A: if files changed and no note was saved: save one now?
+    A->>S: a note, or nothing
     A->>C: session ends
     C-)S: background writer merges what is left
 ```
@@ -42,7 +50,7 @@ sequenceDiagram
 
 | Piece | What it does |
 |---|---|
-| **Triggers** | Session start, after edits and commits, session end, and the manual checkpoint. |
+| **Triggers** | Session start, after edits and commits, the end of each turn, session end, and the manual checkpoint. |
 | **Adapter** | Each agent reports events in its own format. The adapter works out which agent is calling and converts the event into one common format, so everything after it is shared. |
 | **Store guard** | Creates `.continuity/` on first use, and checks its schema version before any read or write. |
 | **Recall builder** | Picks the most useful recent entries (active tasks first) and trims the summary to fit its limit. |
@@ -55,8 +63,11 @@ sequenceDiagram
 | Install | from the marketplace | from the marketplace, then trust the hooks once | from the marketplace, then install in the app |
 | Manual save | `/continuity-checkpoint` | `continuity-checkpoint` skill | `/continuity-checkpoint` |
 
-Claude Desktop (Cowork) is **not supported**: it never runs plugin hooks
-([anthropics/claude-code#40495](https://github.com/anthropics/claude-code/issues/40495)).
+Claude Desktop (Cowork) is **limited to the Cowork workspace**. Its hooks do run, but
+in a cloud container whose working directory is `/home/claude`, so the store is created
+there, not in the folder you connected. The container is reset between sessions, so a
+new session starts with an empty store (tested 2026-10-08). Local Cowork and the
+desktop app's Code tab are untested.
 Codex is beta because it hasn't yet been verified in a live Codex session. All three
 install from the same GitHub marketplace; see [install.md](install.md).
 
@@ -70,6 +81,7 @@ install from the same GitHub marketplace; see [install.md](install.md).
 ├── learnings.md      things worth not re-discovering
 ├── sessions/         one handoff per session; old ones are cleaned up (default 60 days)
 ├── .staged/          the staging inbox: notes waiting to be merged
+├── .turn-edited      marker: this turn changed files and no note was saved yet
 ├── metadata.json     schema version and settings
 └── errors.log        anything that went wrong
 ```
@@ -96,7 +108,9 @@ skips that step, notes it in `.continuity/errors.log`, and the session carries o
 - **Nothing to install or run.** Python standard library only: no server, no database,
   no network calls, no third-party packages.
 - **Fails open.** Problems are logged, never shown to the user.
-- **Never blocks the agent.** Every write happens in a background process.
+- **Never blocks the agent.** Every write happens in a background process. The one
+  pause is the end-of-turn request for a note: at most once per turn, only after a turn
+  that changed files.
 
 ## Where to look in the code
 
@@ -104,7 +118,7 @@ Everything lives in [`plugins/continuity/`](../plugins/continuity/):
 
 | Piece | Code |
 |---|---|
-| Triggers | `hooks/` (`hooks.json` for Claude Code and Codex, `cursor-hooks.json` for Cursor) |
+| Triggers | `hooks/`, including `stop.py` for the end-of-turn request (`hooks.json` for Claude Code and Codex, `cursor-hooks.json` for Cursor) |
 | Adapter | `lib/agents.py` |
 | Store guard | `lib/migrate.py` |
 | Recall builder | `lib/select_context.py` |

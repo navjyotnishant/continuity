@@ -25,7 +25,7 @@ plugins/continuity/   The plugin root — Codex ignores a marketplace plugin
   .claude-plugin/plugin.json   Plugin manifest
   .codex-plugin/    Codex manifest
   .cursor-plugin/   Cursor manifest
-  hooks/            SessionStart / PostToolUse / SessionEnd hook scripts
+  hooks/            SessionStart / PostToolUse / Stop / SessionEnd hook scripts
   commands/         Slash commands (e.g. /continuity-checkpoint)
   skills/           checkpoint skill (Codex loads skills, not commands)
   lib/              Shared logic: locking, atomic writes, secret scan,
