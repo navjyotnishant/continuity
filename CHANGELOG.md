@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-10-08
+
+### Added
+
+- Continuity now asks for a note at the end of a turn instead of hoping one
+  gets written. When a turn changed files and nothing was staged, a new Stop
+  hook asks the agent once to stage a short summary (a decision, learning,
+  task or handoff), or nothing if nothing qualifies. Turns without changes are
+  untouched, and it never asks twice in one turn. Works in Claude Code and
+  Codex (same turn) and in Cursor (as an automatic follow-up message).
+
+### Changed
+
+- Claude Desktop (Cowork) is now documented as limited to the Cowork workspace
+  rather than unsupported. Its hooks do run, but the store lives in the cloud
+  container, not your connected folder, and is lost when the container resets
+  between sessions.
+
 ## [0.2.1] - 2026-09-28
 
 ### Changed
@@ -103,7 +121,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a durable file.
 - Retention pruning for old session-handoff files and stale lock/temp debris.
 
-[Unreleased]: https://github.com/navjyotnishant/continuity/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/navjyotnishant/continuity/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/navjyotnishant/continuity/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/navjyotnishant/continuity/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/navjyotnishant/continuity/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/navjyotnishant/continuity/compare/v0.1.1...v0.1.2

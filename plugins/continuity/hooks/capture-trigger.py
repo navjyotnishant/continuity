@@ -36,6 +36,7 @@ PLUGIN_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WRITER = os.path.join(PLUGIN_ROOT, "lib", "write_memory.py")
 
 EDIT_TOOLS = ("Edit", "Write", "MultiEdit")
+TURN_MARKER = ".turn-edited"
 GIT_DIFF_TIMEOUT = 5
 
 
@@ -137,6 +138,28 @@ def project_root_for(payload):
     return cwd
 
 
+def mark_turn(target, file_path):
+    """Record for hooks/stop.py whether this turn still owes a note (CONTINUI-66).
+
+    A change inside the store itself — the agent staging a note — clears the
+    marker; any other meaningful change sets it. A project with no store is
+    left alone: creating one is SessionStart's job, not this hook's. Never
+    raises.
+    """
+    store = os.path.join(target, ".continuity")
+    marker = os.path.join(store, TURN_MARKER)
+    try:
+        if not os.path.isdir(store):
+            return
+        if isinstance(file_path, str) and os.path.abspath(file_path).startswith(store + os.sep):
+            if os.path.exists(marker):
+                os.remove(marker)
+            return
+        open(marker, "a").close()
+    except OSError:
+        pass
+
+
 def detach_kwargs():
     """Platform-specific arguments that orphan the writer (research.md R4)."""
     if os.name == "nt":
@@ -211,6 +234,7 @@ def main():
             continue
         target = project_root_for(payload)
         target = target if isinstance(target, str) and target else cwd
+        mark_turn(target, (payload.get("tool_input") or {}).get("file_path"))
         if (target, trigger_kind) not in launches:
             launches.append((target, trigger_kind))
 

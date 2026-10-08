@@ -171,6 +171,10 @@ Claude-driven call sites use before invoking `write_memory.py`.
    trigger_kind]` detached (`subprocess.Popen(..., **detach_kwargs)`, per
    research.md R4) and exit immediately with no output. The hook does not
    wait for the writer.
+4. Before launching, mark the turn for `Stop` (CONTINUI-66): a meaningful
+   change to a file inside `.continuity/` (the agent staging a note) removes
+   `.continuity/.turn-edited`; any other meaningful change creates it (empty).
+   A project with no `.continuity/` is left alone.
 
 **Output**: none (empty stdout is a valid, successful response for this
 hook — Continuity never blocks or modifies the tool call itself).
@@ -193,6 +197,37 @@ produces no new file), so `session-end.py` stays a simple, unconditional
 dispatcher.
 
 **Output**: none.
+
+## `Stop` — `hooks/stop.py` (CONTINUI-66)
+
+Registered as `Stop` in `hooks/hooks.json` (Claude Code, Codex) and `stop` in
+`hooks/cursor-hooks.json` (Cursor).
+
+**Input** (stdin, JSON — fields Continuity reads):
+```json
+{
+  "cwd": "<absolute project path>",
+  "stop_hook_active": false
+}
+```
+Cursor sends `loop_count` and `status` instead of `stop_hook_active`, and its
+project root comes from `CURSOR_PROJECT_DIR` / `workspace_roots`.
+
+**Behavior**:
+1. No `.continuity/.turn-edited` marker: exit with no output.
+2. Otherwise remove the marker, then stay silent if this is the re-entry pass
+   (`stop_hook_active` true, or `loop_count` > 0), if a Cursor turn ended with
+   a `status` other than `completed`, or if `.continuity/.staged/` already
+   holds a note.
+3. Else emit one request to stage a 1-5 line note, or nothing, naming the
+   absolute `.staged/` path.
+
+**Output**: `{"decision": "block", "reason": "<request>"}` for Claude Code
+and Codex, which continue the same turn; `{"followup_message": "<request>"}`
+for Cursor, which sends it as the next user message. No output lets the turn
+end. This is the one hook that may extend a turn, bounded by the
+constitution's "Feel unchanged" exception: once per turn, only after a turn
+with changes, never in a loop.
 
 ## `/continuity-checkpoint` — explicit checkpoint command
 

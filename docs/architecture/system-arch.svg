@@ -108,7 +108,7 @@
   <polygon class="off" points="54,584 196,584 210,610 196,636 54,636 40,610"/>
   <text class="small" x="125" y="606" text-anchor="middle">Claude Desktop</text>
   <text class="tiny" x="125" y="622" text-anchor="middle">(Cowork)</text>
-  <text class="tiny" x="125" y="666" text-anchor="middle">not supported: never runs plugin hooks</text>
+  <text class="tiny" x="125" y="666" text-anchor="middle">limited: memory stays in its sandbox</text>
 
   <!-- agents -> configs -->
   <line class="aSlate" x1="260" y1="280" x2="328" y2="288" marker-end="url(#mSlate)"/>
@@ -128,16 +128,18 @@
   <!-- bus -->
   <line class="aSlate" x1="530" y1="290" x2="560" y2="290"/>
   <line class="aSlate" x1="530" y1="480" x2="560" y2="480"/>
-  <line class="aSlate" x1="560" y1="280" x2="560" y2="490"/>
+  <line class="aSlate" x1="560" y1="280" x2="560" y2="575"/>
   <line class="aSlate" x1="560" y1="280" x2="598" y2="280" marker-end="url(#mSlate)"/>
   <line class="aSlate" x1="560" y1="385" x2="598" y2="385" marker-end="url(#mSlate)"/>
   <line class="aSlate" x1="560" y1="490" x2="598" y2="490" marker-end="url(#mSlate)"/>
+  <line class="aSlate" x1="560" y1="575" x2="598" y2="575" marker-end="url(#mSlate)"/>
 
   <!-- hook scripts -->
   <g filter="url(#shadow)">
     <rect class="comp" x="600" y="245" width="210" height="70" rx="12"/>
     <rect class="comp" x="600" y="345" width="210" height="80" rx="12"/>
     <rect class="comp" x="600" y="455" width="210" height="70" rx="12"/>
+    <rect class="comp" x="600" y="545" width="210" height="60" rx="12"/>
   </g>
   <text class="nameM mono" x="705" y="274" text-anchor="middle">session-start.py</text>
   <text class="small" x="705" y="296" text-anchor="middle">Recall</text>
@@ -146,14 +148,17 @@
   <text class="small" x="705" y="413" text-anchor="middle">and git commits</text>
   <text class="nameM mono" x="705" y="484" text-anchor="middle">session-end.py</text>
   <text class="small" x="705" y="506" text-anchor="middle">Flush</text>
+  <text class="nameM mono" x="705" y="570" text-anchor="middle">stop.py</text>
+  <text class="small" x="705" y="591" text-anchor="middle">Ask for a note at turn end</text>
 
   <!-- scripts -> adapter -->
   <line class="aSlate" x1="810" y1="280" x2="848" y2="280" marker-end="url(#mSlate)"/>
   <line class="aSlate" x1="810" y1="385" x2="848" y2="385" marker-end="url(#mSlate)"/>
   <line class="aSlate" x1="810" y1="490" x2="848" y2="490" marker-end="url(#mSlate)"/>
+  <line class="aSlate" x1="810" y1="575" x2="848" y2="575" marker-end="url(#mSlate)"/>
 
   <!-- adapter -->
-  <rect class="adapt" x="850" y="245" width="160" height="280" rx="14" filter="url(#shadow)"/>
+  <rect class="adapt" x="850" y="245" width="160" height="365" rx="14" filter="url(#shadow)"/>
   <text class="nameM mono tTeal" x="930" y="290" text-anchor="middle">lib/agents.py</text>
   <text class="small" x="930" y="330" text-anchor="middle">detects the agent</text>
   <text class="small" x="930" y="350" text-anchor="middle">from the event</text>
@@ -161,7 +166,7 @@
   <text class="small" x="930" y="405" text-anchor="middle">one shape</text>
   <text class="small" x="930" y="440" text-anchor="middle">formats the reply</text>
   <text class="small" x="930" y="460" text-anchor="middle">for that agent</text>
-  <text class="tiny" x="930" y="502" text-anchor="middle">never reads env vars</text>
+  <text class="tiny" x="930" y="590" text-anchor="middle">never reads env vars</text>
 
   <!-- adapter -> lib -->
   <line class="aSlate" x1="1010" y1="280" x2="1048" y2="280" marker-end="url(#mSlate)"/>
@@ -199,7 +204,8 @@
   <text class="small mono" x="1410" y="414" text-anchor="middle" style="font-size:12px">sessions/ · .staged/</text>
   <text class="small mono" x="1410" y="436" text-anchor="middle" style="font-size:12px">metadata.json</text>
   <text class="small mono" x="1410" y="458" text-anchor="middle" style="font-size:12px">errors.log</text>
-  <text class="tiny" x="1410" y="492" text-anchor="middle">plain Markdown · git-tracked</text>
+  <text class="small mono" x="1410" y="480" text-anchor="middle" style="font-size:12px">.turn-edited</text>
+  <text class="tiny" x="1410" y="504" text-anchor="middle">plain Markdown · git-tracked</text>
 
   <!-- staging lane (bottom, orange = the agent's own work) -->
   <path class="aOrange" d="M250,534 L250,652 L1410,652 L1410,540" marker-end="url(#mOrange)"/>
@@ -216,5 +222,5 @@
   <text class="name tGreen" x="780" y="719" text-anchor="middle">Fails open</text>
   <text class="small" x="780" y="740" text-anchor="middle">hooks always exit 0 — problems go to errors.log</text>
   <text class="name tGreen" x="1285" y="719" text-anchor="middle">Never blocks the agent</text>
-  <text class="small" x="1285" y="740" text-anchor="middle">every memory write runs as a detached process</text>
+  <text class="small" x="1285" y="740" text-anchor="middle">writes run detached; one bounded ask at turn end</text>
 </svg>

@@ -103,7 +103,7 @@ class TestNormalizeCursor(unittest.TestCase):
 
     def test_unmapped_event_is_a_no_op(self):
         # Review Focus 5
-        self.assertEqual(agents.normalize({"hook_event_name": "stop"}, {"CURSOR_PROJECT_DIR": "/r"}), [])
+        self.assertEqual(agents.normalize({"hook_event_name": "beforeReadFile"}, {"CURSOR_PROJECT_DIR": "/r"}), [])
 
     def test_recorded_cursor_payloads_all_normalize(self):
         for name in ("sessionStart", "afterFileEdit", "afterShellExecution", "sessionEnd"):
