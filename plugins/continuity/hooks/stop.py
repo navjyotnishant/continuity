@@ -31,10 +31,13 @@ Standard library only (Python 3.9+) — no third-party imports, ever.
 
 import json
 import os
+import subprocess
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PLUGIN_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PLUGIN_ROOT)
 
+WRITER = os.path.join(PLUGIN_ROOT, "lib", "write_memory.py")
 TURN_MARKER = ".turn-edited"
 
 NUDGE = """[Continuity] Files changed this turn and no continuity note was staged. \
@@ -63,12 +66,44 @@ def has_staged_note(staged_dir):
         return False
 
 
+def detach_kwargs():
+    """Platform-specific arguments that orphan the writer (research.md R4)."""
+    if os.name == "nt":
+        return {
+            "creationflags": subprocess.CREATE_NEW_PROCESS_GROUP
+            | subprocess.DETACHED_PROCESS
+        }
+    return {"start_new_session": True}
+
+
+def launch_writer(cwd, writer=WRITER):
+    """Consolidate staged notes in the background. Never raises.
+
+    Launched from here because a note written through a shell redirect (Codex)
+    is not a meaningful edit to capture-trigger.py, so nothing else would
+    consolidate it until a later git command.
+    """
+    try:
+        subprocess.Popen(
+            [sys.executable or "python3", writer, cwd, "stop"],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            close_fds=True,
+            **detach_kwargs()
+        )
+    except (OSError, ValueError):
+        pass
+
+
 def decide(payload):
     """Return the nudge text for this Stop, or None to let the turn end."""
     cwd = payload.get("cwd")
     if not isinstance(cwd, str) or not cwd:
         return None
     store = os.path.join(cwd, ".continuity")
+    if has_staged_note(os.path.join(store, ".staged")):
+        launch_writer(cwd)
     marker = os.path.join(store, TURN_MARKER)
     if not os.path.exists(marker):
         return None

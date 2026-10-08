@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- A note the agent saves with a shell command (as Codex does) is now saved at the end
+  of the turn, not left waiting for a later git command.
+
 ## [0.2.2] - 2026-10-08
 
 ### Added
