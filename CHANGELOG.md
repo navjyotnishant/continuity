@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Continuity now asks for a note at the end of a turn instead of hoping one
+  gets written. When a turn changed files and nothing was staged, a new Stop
+  hook asks the agent once to stage a short summary (a decision, learning,
+  task or handoff), or nothing if nothing qualifies. Turns without changes are
+  untouched, and it never asks twice in one turn. Works in Claude Code and
+  Codex (same turn) and in Cursor (as an automatic follow-up message).
+
 ## [0.2.1] - 2026-09-28
 
 ### Changed

@@ -25,6 +25,7 @@ _CURSOR_EVENTS = {
     "sessionEnd": "SessionEnd",
     "afterFileEdit": "PostToolUse",
     "afterShellExecution": "PostToolUse",
+    "stop": "Stop",
 }
 
 _PATCH_HEADER = re.compile(
@@ -57,6 +58,18 @@ def format_context(agent, event_name, text):
     return json.dumps(
         {"hookSpecificOutput": {"hookEventName": event_name, "additionalContext": text}}
     )
+
+
+def format_stop_nudge(agent, text):
+    """Ask the agent for one more pass before its turn ends (CONTINUI-66).
+
+    Cursor's stop hook cannot block; it sends `followup_message` as the next
+    user message instead. Claude Code and Codex continue the same turn on a
+    `block` decision, reading `reason` as the instruction.
+    """
+    if agent == CURSOR:
+        return json.dumps({"followup_message": text})
+    return json.dumps({"decision": "block", "reason": text})
 
 
 def patch_paths(patch, cwd):
@@ -98,6 +111,9 @@ def _from_cursor(payload, env):
     elif event == "afterShellExecution":
         out["tool_name"] = "Bash"
         out["tool_input"] = {"command": payload.get("command") or ""}
+    elif event == "stop":
+        out["loop_count"] = payload.get("loop_count") or 0
+        out["status"] = payload.get("status")
     return [out]
 
 
