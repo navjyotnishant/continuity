@@ -1,6 +1,6 @@
 {
   "name": "continuity",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Cross-session memory for coding agents: persists project-scoped context under .continuity/ as plain Markdown, recalls a bounded subset at session start, captures after meaningful edits and commits, and fails open on any error.",
   "author": { "name": "Navjyot Nishant" },
   "repository": "https://github.com/navjyotnishant/continuity",
