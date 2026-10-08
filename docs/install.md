@@ -44,11 +44,18 @@ cursor-agent plugin marketplace add https://github.com/navjyotnishant/continuity
  Cursor reads
 `.cursor-plugin/plugin.json` and its hooks from `hooks/cursor-hooks.json`.
 
-### Claude Desktop (Cowork): not supported
+### Claude Desktop (Cowork): limited to the Cowork workspace
 
-Cowork does not run plugin hooks, so Continuity can neither recall nor capture there
-([anthropics/claude-code#40495](https://github.com/anthropics/claude-code/issues/40495)).
-This section changes once that is fixed.
+Install through the desktop app (Customize → Plugins); a copy installed only from the
+CLI is not visible to Cowork. Continuity's hooks run in Cowork, but in a cloud
+container whose working directory is `/home/claude`, so:
+
+- the store is created at `/home/claude/.continuity/`, not in the folder you connected;
+- the container is reset between sessions, so the next session starts with an empty
+  store and recalls nothing.
+
+Notes therefore last only for the current session (tested 2026-10-08). Local Cowork
+and the desktop app's Code tab are untested.
 
 ### Updating
 
@@ -77,7 +84,8 @@ cursor-agent plugin marketplace remove continuity
 cursor-agent plugin marketplace add https://github.com/navjyotnishant/continuity
 ```
 
-Codex may ask you to trust the plugin's hooks again after a reinstall.
+Codex may ask you to trust the plugin's hooks again after a reinstall, or after an
+update that adds a hook (such as the end-of-turn `Stop` hook).
 
 ## `.continuity/` is git-tracked by default
 

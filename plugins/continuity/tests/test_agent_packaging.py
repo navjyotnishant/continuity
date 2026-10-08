@@ -8,7 +8,7 @@ import unittest
 
 REPO_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 MANIFESTS = [".claude-plugin/plugin.json", ".codex-plugin/plugin.json", ".cursor-plugin/plugin.json", "plugin.json"]
-CURSOR_EVENTS = {"sessionStart", "sessionEnd", "afterFileEdit", "afterShellExecution"}
+CURSOR_EVENTS = {"sessionStart", "sessionEnd", "afterFileEdit", "afterShellExecution", "stop"}
 
 
 def load(rel):

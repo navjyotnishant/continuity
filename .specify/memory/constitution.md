@@ -1,5 +1,9 @@
 <!--
 Sync Impact Report
+- Version change: 1.1.0 → 1.2.0 (MINOR); Modified: Additional Constraints →
+  Feel unchanged; reason: end-of-turn capture nudge (CONTINUI-66).
+
+Sync Impact Report
 - Version change: 1.0.0 → 1.1.0 (MINOR); Modified: Additional Constraints →
   Distribution shape, Feel unchanged, Fail open; reason: multi-agent support
   (specs/002-multi-agent).
@@ -71,7 +75,10 @@ Questions, referenced where a constraint depends on one).
 - **Feel unchanged.** The coding agent must feel exactly as fast and natural with
   Continuity installed as without it. Continuity must never block Claude's
   interactive response and must never introduce noticeable latency into the
-  user's workflow.
+  user's workflow. One bounded exception: after a turn that changed files and
+  staged no note, the Stop hook may ask the agent for a single extra pass to
+  stage one, once that turn's response is complete — at most once per turn,
+  never on a turn without changes, and never in a loop.
 - **No new infrastructure for the MVP.** Continuity must never require a
   separate server process, a database installation, or a cloud dependency for
   the basic/MVP implementation, and must never require Go or any other
@@ -116,4 +123,4 @@ those stages in sequence.
   approved until either the plan or this constitution is changed to resolve
   the conflict.
 
-**Version**: 1.1.0 | **Ratified**: 2026-09-11 | **Last Amended**: 2026-09-27
+**Version**: 1.2.0 | **Ratified**: 2026-09-11 | **Last Amended**: 2026-10-08

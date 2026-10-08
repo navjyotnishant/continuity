@@ -49,6 +49,10 @@ database, `flock`, `pytest`) was rejected.
   interaction, and never via an LLM call. Writes run as detached,
   fire-and-forget background processes so the triggering hook returns
   immediately.
+- **End of turn**: if a turn changed files and the agent staged no note, a
+  `Stop` hook asks it once to stage a short one (or nothing, if the change
+  speaks for itself), so capture does not depend on the agent remembering
+  the session-start instruction.
 - **Failure handling**: every read or write fails open — on any error
   (missing directory, corrupted file, write failure) the operation is
   skipped and logged locally to `.continuity/errors.log`, and Claude Code
@@ -66,7 +70,7 @@ plugins/continuity/   The plugin root (Codex requires a real subfolder, not
   .claude-plugin/   Plugin manifest + marketplace listing
   .codex-plugin/    Codex manifest
   .cursor-plugin/   Cursor manifest
-  hooks/            SessionStart / PostToolUse / SessionEnd hook scripts
+  hooks/            SessionStart / PostToolUse / Stop / SessionEnd hook scripts
   commands/         Slash commands (e.g. /continuity-checkpoint)
   skills/           checkpoint skill (Codex loads skills, not commands)
   lib/              Shared logic: locking, atomic writes, secret scan,
