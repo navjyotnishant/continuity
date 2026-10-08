@@ -80,6 +80,34 @@ class TestStopGate(StoreCase):
             self.assertEqual(run_stop({"hook_event_name": "Stop", "cwd": bare}), (0, ""))
 
 
+class TestStopConsolidatesStagedNotes(StoreCase):
+    """A note staged without a meaningful-edit trigger (e.g. Codex's shell
+    redirect) is consolidated at Stop, even when no turn marker is set."""
+
+    def test_staged_note_without_marker_launches_writer(self):
+        open(os.path.join(self.staged, "decision-20261008T000000Z-1.md"), "w").close()
+        with mock.patch.object(stop, "launch_writer") as launch:
+            self.assertEqual(run_stop({"hook_event_name": "Stop", "cwd": self.root}), (0, ""))
+        launch.assert_called_once_with(self.root)
+
+    def test_empty_staged_dir_launches_nothing(self):
+        with mock.patch.object(stop, "launch_writer") as launch:
+            run_stop({"hook_event_name": "Stop", "cwd": self.root})
+        launch.assert_not_called()
+
+    def test_writer_launch_failure_does_not_raise(self):
+        open(os.path.join(self.staged, "task-20261008T000000Z-1.md"), "w").close()
+        with mock.patch.object(stop.subprocess, "Popen", side_effect=OSError("no python")):
+            self.assertEqual(run_stop({"hook_event_name": "Stop", "cwd": self.root}), (0, ""))
+
+    def test_launch_uses_writer_with_stop_trigger(self):
+        with mock.patch.object(stop.subprocess, "Popen") as popen:
+            stop.launch_writer(self.root)
+        argv = popen.call_args.args[0]
+        self.assertEqual(argv[1], stop.WRITER)
+        self.assertEqual(argv[2:], [self.root, "stop"])
+
+
 class TestStopAcrossAgents(StoreCase):
     def test_cursor_gets_a_followup_message(self):
         self.edit_turn()
