@@ -22,6 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A new `state` note replaces the project's current state (`state.md`): a short
   summary plus constraints. Nothing used to write that file.
 
+### Changed
+
+- The end-of-turn request for a note now says a code comment or the diff is not a
+  record, so agents stop skipping a decision just because its reason is written in
+  a comment.
+
 ## [0.2.3] - 2026-10-08
 
 ### Fixed

@@ -41,13 +41,15 @@ WRITER = os.path.join(PLUGIN_ROOT, "lib", "write_memory.py")
 TURN_MARKER = ".turn-edited"
 
 NUDGE = """[Continuity] Files changed this turn and no continuity note was staged. \
-Most turns need no note: skip it when the change speaks for itself in the code \
-or git history. Stage one only if a future session would otherwise lose \
-something: a decision and its reason, a non-obvious learning, a task left \
-unfinished or blocked, or where a multi-step piece of work stands. Then write \
-1-5 lines to `{staged_dir}/<kind>-<UTC timestamp like 20260927T140501Z>-<n>.md`, \
-kind one of decision, task, learning, handoff, state; a first-line `# heading` \
-becomes its title, and a task note may add `status: active|blocked|done`. \
+A code comment or the diff is not a record: a future session recalls only \
+`.continuity/`. If this turn involved a decision and its reason, a non-obvious \
+learning, a task left unfinished or blocked, or multi-step work still in \
+progress, stage a 1-5 line note, even if the reason is also written in a code \
+comment. Skip it only for routine work (scaffolding, renames, formatting) where \
+nothing about why or what comes next would be lost. Write it to \
+`{staged_dir}/<kind>-<UTC timestamp like 20260927T140501Z>-<n>.md`, kind one of \
+decision, task, learning, handoff, state; a first-line `# heading` becomes its \
+title, and a task note may add `status: active|blocked|done`. \
 Either way, produce no further reply text."""
 
 
