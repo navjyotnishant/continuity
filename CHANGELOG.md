@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-10-09
+
+### Fixed
+
+- The end-of-turn request for a note now also fires after work done in the shell: files
+  written with `>`, `sed -i`, `tee`, `mv` and the like, and commits made as
+  `git -c k=v commit` or `git -C dir commit`. Before, only a literal `git commit` or an
+  editor-tool edit counted.
+- A read-only git command such as `git status` no longer counts as an edit just because the
+  repo has uncommitted changes.
+
 ## [0.2.4] - 2026-10-09
 
 ### Fixed
@@ -151,7 +162,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a durable file.
 - Retention pruning for old session-handoff files and stale lock/temp debris.
 
-[Unreleased]: https://github.com/navjyotnishant/continuity/compare/v0.2.4...HEAD
+[Unreleased]: https://github.com/navjyotnishant/continuity/compare/v0.2.5...HEAD
+[0.2.5]: https://github.com/navjyotnishant/continuity/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/navjyotnishant/continuity/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/navjyotnishant/continuity/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/navjyotnishant/continuity/compare/v0.2.1...v0.2.2
