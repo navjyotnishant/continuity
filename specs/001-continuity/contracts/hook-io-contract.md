@@ -173,9 +173,16 @@ Claude-driven call sites use before invoking `write_memory.py`.
    - `Edit`/`Write`/`MultiEdit`: meaningful if the tool reports a non-empty
      diff (not a whitespace-only change — the spec's documented no-op edge
      case).
-   - `Bash`: meaningful only if the command was a `git commit`, or if a
-     `git diff --stat` computed against the project root shows non-
-     whitespace changes since the last checkpoint.
+   - `Bash`: meaningful if the command was a `git commit` (including
+     `git -c k=v commit`, `git -C dir commit`), or if a `git diff --stat`
+     computed against the project root shows non-whitespace changes since the
+     last checkpoint. A command that appears to change files (a redirection to
+     a project path, `sed -i`, `tee`, `mv`, `cp`, `rm`, `touch`,
+     `git checkout`/`apply`, an inline `open(..., 'w')`) is a `shell-edit`: it
+     owes the turn a note (the `.turn-edited` marker) but launches no writer.
+     A read-only git command in a dirty repo launches the writer but is not an
+     edit. A command that writes under `.continuity/` is the agent staging a
+     note and clears the marker, like the Write tool.
 2. If not meaningful: exit with no output, no lock taken, nothing logged
    (a legitimate no-op is not a failure — FR-011).
 3. If meaningful: launch `["python3", "lib/write_memory.py", cwd,
