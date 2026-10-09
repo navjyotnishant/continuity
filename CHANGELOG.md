@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.6] - 2026-10-09
+
 ### Fixed
 
 - `git add -A` no longer commits Continuity's local-only files. A `.continuity/.gitignore`
@@ -171,7 +173,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a durable file.
 - Retention pruning for old session-handoff files and stale lock/temp debris.
 
-[Unreleased]: https://github.com/navjyotnishant/continuity/compare/v0.2.5...HEAD
+[Unreleased]: https://github.com/navjyotnishant/continuity/compare/v0.2.6...HEAD
+[0.2.6]: https://github.com/navjyotnishant/continuity/compare/v0.2.5...v0.2.6
 [0.2.5]: https://github.com/navjyotnishant/continuity/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/navjyotnishant/continuity/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/navjyotnishant/continuity/compare/v0.2.2...v0.2.3
