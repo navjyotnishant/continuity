@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `git add -A` no longer commits Continuity's local-only files. A `.continuity/.gitignore`
+  now keeps out the raw notes waiting to be saved (which are not secret-scanned yet), the
+  turn marker, the lock, `errors.log` and temp files. All project memory (`state.md`,
+  `tasks.md`, `decisions.md`, `learnings.md`, `sessions/`, `metadata.json`) is still
+  committed. A new store gets the file straight away; an existing one gets it the next time
+  Continuity saves a note.
+
 ## [0.2.5] - 2026-10-09
 
 ### Fixed

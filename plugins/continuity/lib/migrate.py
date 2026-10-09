@@ -40,6 +40,11 @@ PLUGIN_MANIFEST_PATH = os.path.join(_REPO_ROOT, ".claude-plugin", "plugin.json")
 # The durable files a store is made of, beside `metadata.json`.
 SEED_FILES = ("state.md", "decisions.md", "tasks.md", "learnings.md")
 
+# Keeps the store's local-only files (raw staged notes, the turn marker, the
+# lock, errors.log, temp files) out of `git add -A`. Nothing that is project
+# memory is listed: Continuity is built to ship its context with the repo.
+GITIGNORE_NAME = ".gitignore"
+
 _OPERATION = "migrate"
 
 
@@ -155,6 +160,21 @@ def metadata_ensure(continuity_dir_path):
     return True
 
 
+def ensure_gitignore(continuity_dir_path):
+    """Write the store's `.gitignore` if it has none. Never overwrites (a team
+    may have edited it) and never raises."""
+    target = os.path.join(continuity_dir_path, GITIGNORE_NAME)
+    if os.path.exists(target):
+        return
+    try:
+        with open(os.path.join(TEMPLATES_DIR, "gitignore.tmpl"), encoding="utf-8") as handle:
+            atomic_write(target, handle.read())
+    except OSError as error:
+        continuity_log(
+            continuity_dir_path, "seed-gitignore", "write-failed", type(error).__name__
+        )
+
+
 def seed_store(continuity_dir_path):
     """Fill in any durable file this store does not have yet (T029).
 
@@ -188,6 +208,7 @@ def seed_store(continuity_dir_path):
                 "write-failed",
                 type(error).__name__,
             )
+    ensure_gitignore(continuity_dir_path)
 
 
 def metadata_check_and_migrate(continuity_dir_path):

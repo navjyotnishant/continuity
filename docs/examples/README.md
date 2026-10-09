@@ -34,6 +34,9 @@ and checked by a test, so it cannot drift from what the code does.
 - **State** is one current summary plus constraints. A new state note replaces it; a part
   the note leaves out keeps its previous value, and an empty note changes nothing.
 - **Session handoffs** are one file per session and are cleaned up after 60 days.
+- [`.gitignore`](store/.gitignore) keeps only the local, transient files out of git (raw
+  staged notes, the turn marker, the lock, `errors.log`, temp files). Everything else in
+  the folder is project memory and is committed with your repo.
 - A note's first line (`# Title`) becomes the entry title. Secret-looking lines are
   dropped before anything is written.
 
