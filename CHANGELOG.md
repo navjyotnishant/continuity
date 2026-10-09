@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The end-of-turn request for a note now also fires after work done in the shell: files
+  written with `>`, `sed -i`, `tee`, `mv` and the like, and commits made as
+  `git -c k=v commit` or `git -C dir commit`. Before, only a literal `git commit` or an
+  editor-tool edit counted.
+- A read-only git command such as `git status` no longer counts as an edit just because the
+  repo has uncommitted changes.
+
 ## [0.2.4] - 2026-10-09
 
 ### Fixed

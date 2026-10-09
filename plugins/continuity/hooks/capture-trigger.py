@@ -29,6 +29,7 @@ Standard library only (Python 3.9+) — no third-party imports, ever.
 
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -38,6 +39,41 @@ WRITER = os.path.join(PLUGIN_ROOT, "lib", "write_memory.py")
 EDIT_TOOLS = ("Edit", "Write", "MultiEdit")
 TURN_MARKER = ".turn-edited"
 GIT_DIFF_TIMEOUT = 5
+
+# `git commit`, including options between the two words (`git -c k=v commit`,
+# `git -C dir commit`, `git --no-pager commit`) but not `git commit-tree`.
+GIT_COMMIT = re.compile(
+    r"""\bgit(?:\s+(?:-[cC]\s+(?:[^\s'"]|'[^']*'|"[^"]*")+|--[\w-]+(?:=\S+)?|-[A-Za-z]))*\s+commit(?![-\w])"""
+)
+
+# A shell command that changes files. A text heuristic, not a diff: it is cheap
+# (no git call on every Bash use) and a false positive costs one skippable
+# nudge, while a miss loses the turn's note. Redirections are handled separately.
+SHELL_WRITE = re.compile(
+    r"""(?:^|[\s;&|(`])(?:mv|cp|rm|touch|truncate|tee|patch)(?![-\w])"""
+    r"""|\b(?:sed|perl|ruby)\b[^|;&\n]*\s-[A-Za-z]*i"""
+    r"""|\bgit\s+(?:apply|checkout|restore|reset|stash|merge|rebase|cherry-pick|mv|rm|pull|revert)\b"""
+    r"""|open\([^)]*['"][wa]b?\+?['"]|\.write_(?:text|bytes)\("""
+)
+REDIRECT = re.compile(r"(?<![<>])(\d*)(?:>>?|&>)(?![>&])\s*(?P<target>[^\s;&|)<]+)")
+NOT_PROJECT_TARGETS = ("/dev/", "/tmp/", "/var/folders/", "/private/tmp/", "/private/var/folders/")
+
+
+def _is_git_commit(command):
+    return bool(GIT_COMMIT.search(command))
+
+
+def _writes_files(command):
+    """True if a shell command appears to create or change files."""
+    if SHELL_WRITE.search(command):
+        return True
+    for match in REDIRECT.finditer(command):
+        target = match.group("target").strip("'\"")
+        if match.group(1) == "2" and not target.startswith(("&",)):
+            continue  # a stderr log is not an edit to the project
+        if target and not target.startswith("&") and not target.startswith(NOT_PROJECT_TARGETS):
+            return True
+    return False
 
 
 def classify(payload):
@@ -50,11 +86,11 @@ def classify(payload):
 
     if tool_name == "Bash":
         command = tool_input.get("command") or ""
-        if "git" not in command:
-            return None
-        if "git commit" in command:
+        if _is_git_commit(command):
             return "git-diff"
-        return "git-diff" if _has_non_whitespace_diff(payload.get("cwd")) else None
+        if "git" in command and _has_non_whitespace_diff(payload.get("cwd")):
+            return "git-diff"
+        return "shell-edit" if _writes_files(command) else None
 
     return None
 
@@ -234,8 +270,17 @@ def main():
             continue
         target = project_root_for(payload)
         target = target if isinstance(target, str) and target else cwd
-        mark_turn(target, (payload.get("tool_input") or {}).get("file_path"))
-        if (target, trigger_kind) not in launches:
+        tool_input = payload.get("tool_input") or {}
+        command = tool_input.get("command") if payload.get("tool_name") == "Bash" else ""
+        command = command if isinstance(command, str) else ""
+        if ".continuity" in command and _writes_files(command):
+            # The agent staging a note from the shell: the same as the Write tool.
+            mark_turn(target, os.path.join(target, ".continuity", "note"))
+        elif trigger_kind != "git-diff" or _is_git_commit(command) or _writes_files(command):
+            # A read-only git command in a dirty repo still launches the writer
+            # but is not an edit, so it must not owe a note.
+            mark_turn(target, tool_input.get("file_path"))
+        if trigger_kind != "shell-edit" and (target, trigger_kind) not in launches:
             launches.append((target, trigger_kind))
 
     for target, trigger_kind in launches:
