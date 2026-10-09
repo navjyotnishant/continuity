@@ -38,6 +38,27 @@ def stage_note(continuity_dir_path, suffix):
     return path
 
 
+def wait_for_writer(continuity_dir_path, timeout=10.0):
+    """Block until the detached writer has finished with the store.
+
+    The writer deletes each staged note inside the store lock and releases
+    the lock last, so no staged note and no `.lock` means it is done. Without
+    this, TemporaryDirectory cleanup races the writer still writing into the
+    store and fails with "Directory not empty" (CONTINUI-65).
+    """
+    from lib.lock import lock_path
+    from lib.write_memory import _staged_files
+
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if not _staged_files(continuity_dir_path) and not os.path.exists(
+            lock_path(continuity_dir_path)
+        ):
+            return True
+        time.sleep(0.05)
+    return False
+
+
 def run_hook(payload, timeout=30):
     started = time.monotonic()
     result = subprocess.run(
@@ -62,6 +83,7 @@ class TestSessionEndReturnsBeforeTheRealWriterCouldPossiblyFinish(unittest.TestC
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(result.stdout, "")
             self.assertLess(elapsed, RETURN_WITHIN_SECONDS)
+            self.assertTrue(wait_for_writer(continuity_dir_path))
 
     def test_hook_returns_promptly_with_no_staged_work_at_all(self):
         with tempfile.TemporaryDirectory() as project:
@@ -88,6 +110,7 @@ class TestSessionEndReturnsBeforeTheRealWriterCouldPossiblyFinish(unittest.TestC
                 os.path.exists(decisions_path),
                 "the detached writer never actually ran to completion",
             )
+            self.assertTrue(wait_for_writer(continuity_dir_path))
 
 
 if __name__ == "__main__":
