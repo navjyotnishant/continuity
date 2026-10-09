@@ -25,7 +25,7 @@ NOTES = os.path.join(EXAMPLES, "staged-notes")
 STORE = os.path.join(EXAMPLES, "store")
 
 RUNS = [("run-1", "2026-09-14T09:00:00Z"), ("run-2", "2026-09-15T10:30:00Z")]
-FILES = ["state.md", "tasks.md", "decisions.md", "learnings.md"]
+FILES = ["state.md", "tasks.md", "decisions.md", "learnings.md", ".gitignore"]
 
 
 def _stage(project, run, stamp):

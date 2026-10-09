@@ -177,14 +177,14 @@ class TestSeededFilesHaveReadableContent(unittest.TestCase):
 
 
 class TestNoExtraFilesOrDirectoriesAreCreated(unittest.TestCase):
-    """A fresh seed is exactly the four durable files plus metadata.json."""
+    """A fresh seed is exactly the four durable files, metadata.json and the store's .gitignore."""
 
-    def test_store_contains_only_the_five_expected_entries(self):
+    def test_store_contains_only_the_six_expected_entries(self):
         with tempfile.TemporaryDirectory() as tmp:
             run_session_start(tmp)
 
             store = os.path.join(tmp, ".continuity")
-            expected = sorted(SEED_FILES + ("metadata.json",))
+            expected = sorted(SEED_FILES + ("metadata.json", ".gitignore"))
             self.assertEqual(sorted(os.listdir(store)), expected)
 
     def test_no_subdirectories_are_created_under_the_store(self):
