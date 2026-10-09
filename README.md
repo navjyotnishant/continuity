@@ -83,6 +83,12 @@ docs/             Intent doc and install/usage docs
 specs/            Feature spec, implementation plan, and tasks (spec-kit)
 ```
 
+## What it writes
+
+[`docs/examples/`](docs/examples/) shows a small project over two sessions: the notes an
+agent stages and the `state.md`, `tasks.md`, `decisions.md`, `learnings.md` and session
+handoff Continuity produces from them.
+
 ## Installing
 
 Continuity installs like any other plugin for Claude Code, Codex (beta) or Cursor, from this repo's

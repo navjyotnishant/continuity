@@ -118,12 +118,23 @@ Task's description, or a Handoff's summary is written by Claude directly,
 as a file, before any trigger fires:
 
 - **Path**: `.continuity/.staged/<kind>-<UTC-timestamp>-<pid>.md`, where
-  `<kind>` is one of `decision`, `task`, `learning`, `handoff`.
+  `<kind>` is one of `decision`, `task`, `learning`, `handoff`, `state`.
 - **Format**: plain text/Markdown — exactly the note body Claude already
   composed for the corresponding entry in data-model.md (a Decision Record,
   Task Entry, Learning, or Session Handoff's Body field). No front-matter or
   schema beyond the filename's `<kind>` tag; `write_memory.py` routes on
   that tag alone.
+- **Task notes**: a `status: active|blocked|done` line in the body sets the
+  entry's status (default `active`; an unrecognized value is ignored). A note
+  whose title matches an existing task (case-insensitive, optional `Task:`
+  prefix) updates that entry **in place** (new status, `updated_at`, new body;
+  `captured_at` kept; no status line keeps the old status) instead of
+  appending, per data-model.md's "status transitions in place".
+- **State notes**: a `state` note rewrites `state.md` in place (one current
+  state, never accumulated): the note's text becomes the summary and a
+  `Constraints` heading or label starts the constraints. A part the note
+  omits keeps its previous value, an empty note never wipes the file, and the
+  newest note in a run wins.
 - **Writer**: Claude's own Write tool, run inline in the session — not a
   hook, not a background process, not an LLM call inside `write_memory.py`.
   This is the one piece of composition a shell script cannot do, and it is

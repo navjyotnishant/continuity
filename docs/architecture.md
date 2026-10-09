@@ -86,7 +86,12 @@ install from the same GitHub marketplace; see [install.md](install.md).
 └── errors.log        anything that went wrong
 ```
 
-New entries are added to the end of each memory file, and earlier ones are kept. By default the
+See [an example of each file](examples/) for what these look like in use.
+
+Decisions and learnings are added to the end of their files, and earlier ones are kept.
+A task with the same title as an existing one is updated in place (its status moves
+between `active`, `blocked` and `done`), and `state.md` holds one current summary that a
+new state note replaces. By default the
 folder is committed with the project, so teammates' sessions share the same memory. To
 keep it local instead, add one line to `.gitignore` ([install.md](install.md)).
 
