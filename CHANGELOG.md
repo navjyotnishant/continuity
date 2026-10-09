@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-10-09
+
+### Fixed
+
+- Entries saved in the same run now recall newest first. Before, the oldest came first
+  and the recall limit cut off the newest.
+- Open tasks now rank by when they were last updated, not just created.
+- An empty state note no longer refreshes the date on a state that did not change.
+
+### Added
+
+- A task note can now carry `status: active`, `status: blocked` or `status: done`, and
+  a later note with the same title updates that task in place, so a finished task is
+  marked done instead of staying active forever.
+- A new `state` note replaces the project's current state (`state.md`): a short
+  summary plus constraints. Nothing used to write that file.
+
+### Changed
+
+- The end-of-turn request for a note now says a code comment or the diff is not a
+  record, so agents stop skipping a decision just because its reason is written in
+  a comment.
+
 ## [0.2.3] - 2026-10-08
 
 ### Fixed
@@ -128,7 +151,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a durable file.
 - Retention pruning for old session-handoff files and stale lock/temp debris.
 
-[Unreleased]: https://github.com/navjyotnishant/continuity/compare/v0.2.3...HEAD
+[Unreleased]: https://github.com/navjyotnishant/continuity/compare/v0.2.4...HEAD
+[0.2.4]: https://github.com/navjyotnishant/continuity/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/navjyotnishant/continuity/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/navjyotnishant/continuity/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/navjyotnishant/continuity/compare/v0.2.0...v0.2.1

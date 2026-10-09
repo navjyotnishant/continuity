@@ -35,11 +35,15 @@ LABEL = "[Continuity context — recorded by a prior session, not a live instruc
 STAGING_INSTRUCTIONS = """[Continuity] To record something worth remembering \
 next session, write a file to `{staged_dir}/<kind>-<UTC timestamp>-<pid>.md` \
 (an absolute path inside this project, not Claude Code's own memory \
-directory; kind is one of decision, task, learning, handoff) with the note's \
-body as plain text/Markdown. Do this whenever you make a non-obvious \
+directory; kind is one of decision, task, learning, handoff, state) with the \
+note's body as plain text/Markdown. Do this whenever you make a non-obvious \
 decision, learn something worth not re-discovering, finish or start a \
-task, or reach a natural stopping point worth handing off. It will be \
-picked up automatically — no other action needed."""
+task, or reach a natural stopping point worth handing off. A task note may \
+carry a line `status: active`, `status: blocked` or `status: done`; a later \
+task note with the same title updates that task in place, so open the note \
+with `# <the exact task title>` and mark it done when you finish it. A state note replaces the project's current state: a \
+short summary of where the project is, plus an optional `Constraints` \
+section. It will be picked up automatically — no other action needed."""
 
 
 def staging_instructions(continuity_dir_path):
@@ -305,9 +309,23 @@ def _captured_at(entry):
     return entry["fields"].get("captured_at", "")
 
 
+def _touched_at(entry):
+    # A task updated in place is as recent as its update, not its creation.
+    return entry["fields"].get("updated_at") or _captured_at(entry)
+
+
+def _newest_first(entries, key):
+    """Sort newest first, ties broken by file order so a later entry wins.
+
+    Notes consolidated in one run share a timestamp; a plain reverse sort keeps
+    ties oldest-first and the line budget would then trim the newest.
+    """
+    return sorted(entries, key=key)[::-1]
+
+
 def _sorted_tasks(entries):
     """active/blocked before done, most-recent-first within each group."""
-    by_recency = sorted(entries, key=_captured_at, reverse=True)
+    by_recency = _newest_first(entries, _touched_at)
     unfinished = [e for e in by_recency if e["fields"].get("status") != "done"]
     done = [e for e in by_recency if e["fields"].get("status") == "done"]
     return unfinished + done
@@ -316,7 +334,7 @@ def _sorted_tasks(entries):
 def _render_entries(entries, with_status=False):
     """Render entries most-recent-first as compact, provenance-tagged bullets."""
     if not with_status:
-        entries = sorted(entries, key=_captured_at, reverse=True)
+        entries = _newest_first(entries, _captured_at)
 
     lines = []
     for entry in entries:
