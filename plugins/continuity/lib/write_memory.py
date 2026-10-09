@@ -19,6 +19,7 @@ Standard library only (Python 3.9+) — no third-party imports, ever.
 
 import argparse
 import os
+import re
 import sys
 from datetime import datetime, timezone
 
@@ -39,7 +40,9 @@ from lib.secret_scan import secret_scan_line
 STAGED_DIRNAME = ".staged"
 SESSIONS_DIRNAME = "sessions"
 
-# The Content Channel's four `<kind>` tags, and where each one lands.
+# The Content Channel's `<kind>` tags, and where each one lands. `handoff`
+# lands in sessions/ and `state` rewrites state.md in place; both are routed
+# separately from these append-only files.
 DURABLE_FILE = {
     "decision": "decisions.md",
     "task": "tasks.md",
@@ -48,6 +51,11 @@ DURABLE_FILE = {
 ENTRY_HEADING = {"decision": "Decision", "task": "Task", "learning": "Learning"}
 TITLE_MAX = 72
 DEFAULT_TASK_STATUS = "active"
+TASK_STATUSES = ("active", "blocked", "done")
+STATE_FILE = "state.md"
+STATE_HEADING = "# Project state"
+_TITLE_LINE = re.compile(r"^\s*title\s*:\s*(\S.*?)\s*$", re.IGNORECASE)
+_STATUS_LINE = re.compile(r"^\s*status\s*:\s*(\w+)\s*$", re.IGNORECASE)
 
 
 def staged_dir(continuity_dir_path):
@@ -115,6 +123,8 @@ def _prune(continuity_dir_path):
 def _consolidate(continuity_dir_path, staged, trigger_kind):
     timestamp = _now()
     entries = {kind: [] for kind in DURABLE_FILE}
+    task_notes = []
+    state_notes = []
     handoff_body = []
     consumed = []
 
@@ -144,14 +154,23 @@ def _consolidate(continuity_dir_path, staged, trigger_kind):
 
         if kind == "handoff":
             handoff_body.append(scrubbed.strip())
+        elif kind == "task":
+            task_notes.append(scrubbed)
+        elif kind == "state":
+            state_notes.append(scrubbed)
         else:
             entries[kind].append(_entry_text(kind, scrubbed, timestamp))
         consumed.append(path)
 
     counts = {kind: len(value) for kind, value in entries.items()}
+    counts["task"] = len(task_notes)
     for kind, texts in entries.items():
         if texts:
             _append_entries(continuity_dir_path, DURABLE_FILE[kind], texts)
+    if task_notes:
+        _upsert_tasks(continuity_dir_path, task_notes, timestamp)
+    if state_notes:
+        counts["state"] = 1 if _write_state(continuity_dir_path, state_notes, timestamp) else 0
 
     handoff_path = _write_handoff(
         continuity_dir_path, trigger_kind, timestamp, "\n\n".join(handoff_body), counts
@@ -189,7 +208,7 @@ def _staged_files(continuity_dir_path):
 def _kind_of(path):
     """Route on the staged filename's `<kind>` prefix alone (T017a)."""
     kind = os.path.basename(path).split("-", 1)[0]
-    if kind in DURABLE_FILE or kind == "handoff":
+    if kind in DURABLE_FILE or kind in ("handoff", "state"):
         return kind
     return None
 
@@ -228,7 +247,8 @@ def _entry_text(kind, note, timestamp):
     title, body = _title_and_body(note)
     fields = ["captured_at: " + timestamp, "category: " + kind]
     if kind == "task":
-        fields.append("status: " + DEFAULT_TASK_STATUS)
+        status, body = _split_status(body)
+        fields.append("status: " + (status or DEFAULT_TASK_STATUS))
 
     label = ENTRY_HEADING[kind]
     # CONTINUI-50: a note titled "Decision: X" must not become "Decision: Decision: X".
@@ -261,6 +281,11 @@ def _title_and_body(note):
         body = "\n".join(lines[index + 1 :]).strip()
         return title[:TITLE_MAX].rstrip(), body
 
+    titled = _TITLE_LINE.match(first)
+    if titled:
+        # Agents often open a note with `title: X` instead of a Markdown heading.
+        return titled.group(1)[:TITLE_MAX].rstrip(), "\n".join(lines[index + 1 :]).strip()
+
     return first[:TITLE_MAX].rstrip(), "\n".join(lines[index:]).strip()
 
 
@@ -291,6 +316,174 @@ def _append_entries(continuity_dir_path, filename, texts):
             "write-failed",
             type(error).__name__,
         )
+
+
+def _split_status(body):
+    """Return (status, body-without-the-status-line).
+
+    The first `status: active|blocked|done` line in a task note is its status;
+    an unrecognized value is left in the body and the status stays unset.
+    """
+    status = None
+    kept = []
+    for line in body.splitlines():
+        match = _STATUS_LINE.match(line)
+        if status is None and match and match.group(1).lower() in TASK_STATUSES:
+            status = match.group(1).lower()
+            continue
+        kept.append(line)
+    return status, "\n".join(kept).strip()
+
+
+def _task_key(heading_title):
+    title = heading_title.strip()
+    if title.lower().startswith("task:"):
+        title = title[len("task:") :].strip()
+    return title.lower()
+
+
+def _split_entries(text):
+    """Return (head, entries): head is the text before the first `## ` line and
+    each entry is one `## ` block. Body headings are demoted on write, so a
+    `## ` line is always an entry's own heading."""
+    head, entries, current = [], [], None
+    for line in text.splitlines():
+        if line.startswith("## "):
+            current = [line]
+            entries.append(current)
+        elif current is None:
+            head.append(line)
+        else:
+            current.append(line)
+    return "\n".join(head), ["\n".join(entry) for entry in entries]
+
+
+def _update_task_entry(entry, status, timestamp, body):
+    """Mutate one task entry in place: new status, `updated_at`, and the new body
+    when the note brought one. Returns None if the entry has no field block."""
+    lines = entry.splitlines()
+    fences = [i for i, line in enumerate(lines) if line.strip().startswith("```")]
+    if len(fences) < 2:
+        return None
+    start, end = fences[0], fences[1]
+    old_status = None
+    fields = []
+    for line in lines[start + 1 : end]:
+        key = line.split(":", 1)[0].strip()
+        if key == "status":
+            old_status = line.split(":", 1)[1].strip()
+        elif key != "updated_at":
+            fields.append(line)
+    fields.append("status: " + (status or old_status or DEFAULT_TASK_STATUS))
+    fields.append("updated_at: " + timestamp)
+    old_body = "\n".join(lines[end + 1 :]).strip()
+    new_body = body if body else old_body
+    out = [lines[0], "", "```"] + fields + ["```", ""] + new_body.splitlines()
+    return "\n".join(out).rstrip() + "\n"
+
+
+def _upsert_tasks(continuity_dir_path, notes, timestamp):
+    """Apply task notes to tasks.md: same title updates that entry in place
+    (data-model.md: "status transitions in place"), a new title appends."""
+    target = os.path.join(continuity_dir_path, "tasks.md")
+    try:
+        head, entries = _split_entries(_read(target) or "")
+        index = {}
+        for position, entry in enumerate(entries):
+            index[_task_key(entry.splitlines()[0][3:])] = position
+        for note in notes:
+            title, body = _title_and_body(note)
+            key = _task_key(title)
+            status, body = _split_status(body)
+            position = index.get(key)
+            updated = (
+                _update_task_entry(entries[position], status, timestamp, body)
+                if position is not None
+                else None
+            )
+            if updated is not None:
+                entries[position] = updated
+            else:
+                entries.append(_entry_text("task", note, timestamp))
+                index[key] = len(entries) - 1
+        text = (head.rstrip() + "\n\n" if head.strip() else "") + "\n".join(
+            entry.rstrip("\n") + "\n" for entry in entries
+        )
+        atomic_write(target, text)
+    except Exception as error:  # noqa: BLE001 — never lose a note to a parse bug
+        continuity_log(
+            continuity_dir_path, "write-tasks", "write-failed", type(error).__name__
+        )
+        _append_entries(
+            continuity_dir_path, "tasks.md", [_entry_text("task", n, timestamp) for n in notes]
+        )
+
+
+def _state_parts(lines):
+    """Split lines into (summary, constraints) at a `Constraints` heading or label."""
+    summary, constraints = [], []
+    target = summary
+    for line in lines:
+        label = line.strip().lstrip("#").strip().lower().rstrip(":")
+        if label == "constraints":
+            target = constraints
+            continue
+        target.append(line)
+    return summary, constraints
+
+
+def _trim_blank(lines):
+    lines = list(lines)
+    while lines and not lines[0].strip():
+        lines.pop(0)
+    while lines and not lines[-1].strip():
+        lines.pop()
+    return lines
+
+
+def _write_state(continuity_dir_path, notes, timestamp):
+    """Rewrite state.md in place from the newest state note (data-model.md: one
+    current state, superseded not accumulated). A part the note omits keeps its
+    previous value, and the file is never reduced to empty. Returns True if written."""
+    target = os.path.join(continuity_dir_path, STATE_FILE)
+    old_summary, old_constraints = [], []
+    old = _read(target)
+    if old:
+        lines = old.splitlines()
+        fences = [i for i, line in enumerate(lines) if line.strip().startswith("```")]
+        body = lines[fences[1] + 1 :] if len(fences) >= 2 else []
+        old_summary, old_constraints = _state_parts(body)
+
+    note_lines = notes[-1].splitlines()
+    while note_lines and not note_lines[0].strip():
+        note_lines.pop(0)
+    if note_lines and note_lines[0].lstrip().startswith("#") and "constraints" not in note_lines[0].lower():
+        note_lines.pop(0)
+    summary, constraints = _state_parts(note_lines)
+    summary, constraints = _trim_blank(summary), _trim_blank(constraints)
+    if not summary and not constraints:
+        # Nothing new: leave state.md and its updated_at exactly as they were.
+        continuity_log(
+            continuity_dir_path, "write-state", "empty", "state note had no content"
+        )
+        return False
+    summary = summary or _trim_blank(old_summary)
+    constraints = constraints or _trim_blank(old_constraints)
+
+    text = "\n".join(
+        [STATE_HEADING, "", "```", "updated_at: " + timestamp, "```", ""]
+        + (summary + [""] if summary else [])
+        + ["## Constraints", ""]
+        + (constraints + [""] if constraints else [])
+    )
+    try:
+        atomic_write(target, text.rstrip("\n") + "\n")
+    except OSError as error:
+        continuity_log(
+            continuity_dir_path, "write-state", "write-failed", type(error).__name__
+        )
+        return False
+    return True
 
 
 def _write_handoff(continuity_dir_path, trigger_kind, timestamp, body, counts):

@@ -46,8 +46,9 @@ or git history. Stage one only if a future session would otherwise lose \
 something: a decision and its reason, a non-obvious learning, a task left \
 unfinished or blocked, or where a multi-step piece of work stands. Then write \
 1-5 lines to `{staged_dir}/<kind>-<UTC timestamp like 20260927T140501Z>-<n>.md`, \
-kind one of decision, task, learning, handoff; a first-line `# heading` becomes \
-its title. Either way, produce no further reply text."""
+kind one of decision, task, learning, handoff, state; a first-line `# heading` \
+becomes its title, and a task note may add `status: active|blocked|done`. \
+Either way, produce no further reply text."""
 
 
 def read_payload():

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Entries saved in the same run now recall newest first. Before, the oldest came first
+  and the recall limit cut off the newest.
+- Open tasks now rank by when they were last updated, not just created.
+- An empty state note no longer refreshes the date on a state that did not change.
+
+### Added
+
+- A task note can now carry `status: active`, `status: blocked` or `status: done`, and
+  a later note with the same title updates that task in place, so a finished task is
+  marked done instead of staying active forever.
+- A new `state` note replaces the project's current state (`state.md`): a short
+  summary plus constraints. Nothing used to write that file.
+
 ## [0.2.3] - 2026-10-08
 
 ### Fixed
