@@ -83,7 +83,8 @@ install from the same GitHub marketplace; see [install.md](install.md).
 ├── .staged/          the staging inbox: notes waiting to be merged
 ├── .turn-edited      marker: this turn changed files and no note was saved yet
 ├── metadata.json     schema version and settings
-└── errors.log        anything that went wrong
+├── errors.log        anything that went wrong
+└── .gitignore        keeps the local-only files above out of git; everything else is committed
 ```
 
 See [an example of each file](examples/) for what these look like in use.

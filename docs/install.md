@@ -97,6 +97,14 @@ repo, and a `git add`/`git commit` will pick it up like any other file
 session to inherit the same context yours did, which only works if that
 context travels with the repo.
 
+Only Continuity's local, transient files are kept out of git, by a
+`.continuity/.gitignore` it writes for you: the raw notes waiting to be saved
+(`.staged/`, not yet secret-scanned), the per-turn marker (`.turn-edited`), the
+lock, `errors.log`, and temp files. Everything else, including `state.md`,
+`tasks.md`, `decisions.md`, `learnings.md`, `sessions/` and `metadata.json`, is
+committed with your repo. An existing file is never overwritten, so your team
+can edit it.
+
 The consequence: anything Continuity persists becomes part of your shared
 git history, on every clone, forever (or until history is rewritten). If
 your project's decisions/tasks notes could ever contain something you
